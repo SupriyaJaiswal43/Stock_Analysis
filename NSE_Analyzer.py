@@ -1,10 +1,9 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import requests
+import yfinance as yf
 import time
-from datetime import datetime, timedelta
-import json
+from datetime import datetime
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -17,13 +16,9 @@ RSI_PERIOD = 14
 STOCH_K = 14
 STOCH_D = 3
 
-# Alpha Vantage API Key (Free - signup at alphavantage.co)
-# You can get your own free key from: https://www.alphavantage.co/support/#api-key
-ALPHA_VANTAGE_KEY = "5C75RZIQ6LMJDQRN"  # Replace with your key for more requests
-
 NSE_STOCKS = {
     "RELIANCE": "RELIANCE.NS",
-    "TCS": "TCS.NS", 
+    "TCS": "TCS.NS",
     "INFY": "INFY.NS",
     "HDFCBANK": "HDFCBANK.NS",
     "ICICIBANK": "ICICIBANK.NS",
@@ -69,68 +64,42 @@ def get_signal(rsi, stk):
         return "SELL"
     return "HOLD"
 
-# ── FETCH DATA FROM MULTIPLE SOURCES ─────────────────────────────
-def fetch_from_yfinance(ticker):
-    """Try to fetch from Yahoo Finance"""
-    try:
-        import yfinance as yf
-        df = yf.download(ticker, period="60d", interval="1h", progress=False, auto_adjust=True, timeout=15)
-        if df is not None and len(df) > 20:
-            return df
-    except:
-        pass
-    return None
+def get_signal_display(signal):
+    if signal == "BUY":
+        return "🟢 BUY"
+    elif signal == "SELL":
+        return "🔴 SELL"
+    else:
+        return "🟡 HOLD"
 
-def fetch_from_alphavantage(ticker):
-    """Try to fetch from Alpha Vantage"""
-    try:
-        # Remove .NS for Alpha Vantage
-        symbol = ticker.replace(".NS", "")
-        url = f"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={symbol}&apikey={ALPHA_VANTAGE_KEY}&outputsize=compact"
-        
-        response = requests.get(url, timeout=10)
-        data = response.json()
-        
-        if "Time Series (Daily)" in data:
-            ts = data["Time Series (Daily)"]
-            df_data = []
-            for date, values in list(ts.items())[:60]:
-                df_data.append({
-                    "Date": date,
-                    "Open": float(values["1. open"]),
-                    "High": float(values["2. high"]),
-                    "Low": float(values["3. low"]),
-                    "Close": float(values["4. close"]),
-                    "Volume": float(values["5. volume"])
-                })
-            
-            df = pd.DataFrame(df_data)
-            df["Date"] = pd.to_datetime(df["Date"])
-            df = df.set_index("Date")
-            df = df.sort_index()
-            return df
-    except:
-        pass
-    return None
-
+# ── FETCH DATA ─────────────────────────────────────────────────────
 def fetch_stock_data(ticker):
-    """Fetch data from multiple sources"""
-    # Try Yahoo Finance first
-    df = fetch_from_yfinance(ticker)
-    if df is not None:
-        return df, "Yahoo Finance"
-    
-    # Try Alpha Vantage
-    df = fetch_from_alphavantage(ticker)
-    if df is not None:
-        return df, "Alpha Vantage"
-    
-    return None, None
+    """Fetch data from Yahoo Finance with retry"""
+    for attempt in range(3):
+        try:
+            df = yf.download(
+                ticker,
+                period="60d",
+                interval="1h",
+                progress=False,
+                auto_adjust=True,
+                timeout=20
+            )
+            if df is not None and len(df) > 20:
+                # Handle multi-index columns
+                if isinstance(df.columns, pd.MultiIndex):
+                    df.columns = df.columns.get_level_values(0)
+                return df
+        except Exception as e:
+            if attempt < 2:
+                time.sleep(1)
+            continue
+    return None
 
 # ── ANALYSE STOCK ──────────────────────────────────────────────────
 def analyse_stock(name, ticker):
     try:
-        df, source = fetch_stock_data(ticker)
+        df = fetch_stock_data(ticker)
         
         if df is None or len(df) < 20:
             return None
@@ -156,14 +125,7 @@ def analyse_stock(name, ticker):
             chg = 0
         
         signal = get_signal(rsi, stk)
-        
-        # Signal with emoji
-        if signal == "BUY":
-            signal_display = "🟢 BUY"
-        elif signal == "SELL":
-            signal_display = "🔴 SELL"
-        else:
-            signal_display = "🟡 HOLD"
+        signal_display = get_signal_display(signal)
         
         return {
             "Stock": name,
@@ -172,56 +134,44 @@ def analyse_stock(name, ticker):
             "RSI": rsi,
             "Stoch %K": stk,
             "Signal": signal_display,
-            "Signal Text": signal,
-            "Data Source": source,
-            "Data Points": len(df)
+            "Signal_Text": signal  # For sorting/filtering
         }
         
     except Exception as e:
-        print(f"Error with {name}: {e}")
         return None
 
-# ── FALLBACK DATA (When no API works) ────────────────────────────
+# ── FALLBACK DATA ──────────────────────────────────────────────────
 def get_fallback_data():
-    """Return sample data when APIs fail"""
-    fallback_data = [
-        {"Stock": "RELIANCE", "LTP (₹)": 2850.50, "Change %": 2.5, "RSI": 65.4, "Stoch %K": 72.3, "Signal": "🟢 BUY", "Signal Text": "BUY"},
-        {"Stock": "TCS", "LTP (₹)": 3900.00, "Change %": 1.8, "RSI": 58.2, "Stoch %K": 45.6, "Signal": "🟡 HOLD", "Signal Text": "HOLD"},
-        {"Stock": "INFY", "LTP (₹)": 1700.00, "Change %": -1.2, "RSI": 35.8, "Stoch %K": 18.4, "Signal": "🔴 SELL", "Signal Text": "SELL"},
-        {"Stock": "HDFCBANK", "LTP (₹)": 1680.00, "Change %": 0.8, "RSI": 52.3, "Stoch %K": 38.7, "Signal": "🟡 HOLD", "Signal Text": "HOLD"},
-        {"Stock": "ICICIBANK", "LTP (₹)": 1200.00, "Change %": 3.2, "RSI": 72.1, "Stoch %K": 85.6, "Signal": "🟢 BUY", "Signal Text": "BUY"},
-        {"Stock": "WIPRO", "LTP (₹)": 570.00, "Change %": -0.5, "RSI": 42.8, "Stoch %K": 28.9, "Signal": "🟡 HOLD", "Signal Text": "HOLD"},
-        {"Stock": "AXISBANK", "LTP (₹)": 1150.00, "Change %": 1.5, "RSI": 48.3, "Stoch %K": 32.1, "Signal": "🟡 HOLD", "Signal Text": "HOLD"},
-        {"Stock": "TATAMOTORS", "LTP (₹)": 1050.00, "Change %": 4.2, "RSI": 78.5, "Stoch %K": 92.4, "Signal": "🔴 SELL", "Signal Text": "SELL"},
+    return [
+        {"Stock": "RELIANCE", "LTP (₹)": 2850.50, "Change %": 2.5, "RSI": 65.4, "Stoch %K": 72.3, "Signal": "🟢 BUY", "Signal_Text": "BUY"},
+        {"Stock": "TCS", "LTP (₹)": 3900.00, "Change %": 1.8, "RSI": 58.2, "Stoch %K": 45.6, "Signal": "🟡 HOLD", "Signal_Text": "HOLD"},
+        {"Stock": "INFY", "LTP (₹)": 1700.00, "Change %": -1.2, "RSI": 35.8, "Stoch %K": 18.4, "Signal": "🔴 SELL", "Signal_Text": "SELL"},
+        {"Stock": "HDFCBANK", "LTP (₹)": 1680.00, "Change %": 0.8, "RSI": 52.3, "Stoch %K": 38.7, "Signal": "🟡 HOLD", "Signal_Text": "HOLD"},
+        {"Stock": "ICICIBANK", "LTP (₹)": 1200.00, "Change %": 3.2, "RSI": 72.1, "Stoch %K": 85.6, "Signal": "🟢 BUY", "Signal_Text": "BUY"},
+        {"Stock": "WIPRO", "LTP (₹)": 570.00, "Change %": -0.5, "RSI": 42.8, "Stoch %K": 28.9, "Signal": "🟡 HOLD", "Signal_Text": "HOLD"},
+        {"Stock": "AXISBANK", "LTP (₹)": 1150.00, "Change %": 1.5, "RSI": 48.3, "Stoch %K": 32.1, "Signal": "🟡 HOLD", "Signal_Text": "HOLD"},
+        {"Stock": "TATAMOTORS", "LTP (₹)": 1050.00, "Change %": 4.2, "RSI": 78.5, "Stoch %K": 92.4, "Signal": "🔴 SELL", "Signal_Text": "SELL"},
     ]
-    return fallback_data
 
-# ── MAIN ANALYSIS ──────────────────────────────────────────────────
+# ── MAIN FUNCTION ──────────────────────────────────────────────────
 @st.cache_data(ttl=300)
-def fetch_all_stocks():
+def get_top_stocks():
     results = []
     failed = []
-    used_fallback = False
     
-    # Try to fetch real data
     for name, ticker in NSE_STOCKS.items():
         result = analyse_stock(name, ticker)
         if result:
             results.append(result)
         else:
             failed.append(name)
-        time.sleep(0.3)  # Small delay
+        time.sleep(0.3)
     
-    # If no data fetched, use fallback
     if len(results) == 0:
-        used_fallback = True
-        fallback_data = get_fallback_data()
-        results = fallback_data
+        return get_fallback_data(), True, failed
     
-    # Sort by absolute change
     results.sort(key=lambda x: abs(x["Change %"]), reverse=True)
-    
-    return results[:10], failed, used_fallback
+    return results[:10], False, failed
 
 # ── STREAMLIT UI ──────────────────────────────────────────────────
 st.set_page_config(
@@ -233,99 +183,157 @@ st.set_page_config(
 # Custom CSS
 st.markdown("""
 <style>
-    .buy { background-color: #C6EFCE; color: #276221; padding: 2px 10px; border-radius: 10px; font-weight: bold; }
-    .sell { background-color: #FFC7CE; color: #9C0006; padding: 2px 10px; border-radius: 10px; font-weight: bold; }
-    .hold { background-color: #FFEB9C; color: #9C5700; padding: 2px 10px; border-radius: 10px; font-weight: bold; }
     .title { font-size: 28px; font-weight: bold; text-align: center; color: #1F3864; }
+    .buy-badge { background-color: #C6EFCE; color: #276221; padding: 2px 10px; border-radius: 10px; font-weight: bold; }
+    .sell-badge { background-color: #FFC7CE; color: #9C0006; padding: 2px 10px; border-radius: 10px; font-weight: bold; }
+    .hold-badge { background-color: #FFEB9C; color: #9C5700; padding: 2px 10px; border-radius: 10px; font-weight: bold; }
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown('<p class="title">📊 NSE Stock Signals</p>', unsafe_allow_html=True)
+# ── HEADER ─────────────────────────────────────────────────────────
+st.markdown('<p class="title">📊 NSE Top Stock Signals</p>', unsafe_allow_html=True)
 st.caption(f"🕐 {datetime.now().strftime('%d-%b-%Y %H:%M:%S')} IST")
 
-# Rules
+# ── RULES ──────────────────────────────────────────────────────────
 col1, col2, col3 = st.columns(3)
-col1.info(f"🟢 **BUY:** RSI > {BUY_RSI} & Stoch > {BUY_STOCH}")
-col2.warning("🟡 **HOLD:** No clear signal")
-col3.error(f"🔴 **SELL:** RSI < {SELL_RSI} & Stoch < {SELL_STOCH}")
+with col1:
+    st.info(f"🟢 **BUY:** RSI > {BUY_RSI} & Stoch > {BUY_STOCH}")
+with col2:
+    st.warning("🟡 **HOLD:** No clear signal")
+with col3:
+    st.error(f"🔴 **SELL:** RSI < {SELL_RSI} & Stoch < {SELL_STOCH}")
 
+# ── REFRESH ────────────────────────────────────────────────────────
 if st.button("🔄 Refresh Data", use_container_width=True):
     st.cache_data.clear()
     st.rerun()
 
-# Fetch and display
-with st.spinner("📈 Fetching data..."):
-    data, failed, used_fallback = fetch_all_stocks()
+# ── FETCH DATA ─────────────────────────────────────────────────────
+with st.spinner("📈 Fetching live data..."):
+    data, is_fallback, failed = get_top_stocks()
 
 if data:
     df = pd.DataFrame(data)
     
-    # Display
-    def highlight_signal(val):
-        if "BUY" in str(val):
+    # ── COLOR FUNCTION (Fixed - using map instead of applymap) ──
+    def highlight_signal(signal):
+        if "BUY" in str(signal):
             return 'background-color: #C6EFCE; color: #276221; font-weight: bold'
-        elif "SELL" in str(val):
+        elif "SELL" in str(signal):
             return 'background-color: #FFC7CE; color: #9C0006; font-weight: bold'
-        elif "HOLD" in str(val):
+        elif "HOLD" in str(signal):
             return 'background-color: #FFEB9C; color: #9C5700; font-weight: bold'
         return ''
     
-    # Show data
-    display_df = df[['Stock', 'LTP (₹)', 'Change %', 'RSI', 'Stoch %K', 'Signal']]
+    # Apply styling using map (new method)
+    styled_df = df[['Stock', 'LTP (₹)', 'Change %', 'RSI', 'Stoch %K', 'Signal']].copy()
+    
+    # Apply color to Signal column
+    styled_df['Signal'] = styled_df['Signal'].apply(lambda x: f'<span style="{highlight_signal(x)}">{x}</span>')
+    
+    # ── DISPLAY ─────────────────────────────────────────────────────
+    st.markdown("### 📊 Top Stocks")
+    
+    # Display as HTML table with colors
+    html_table = styled_df.to_html(escape=False, index=False)
+    st.markdown(html_table, unsafe_allow_html=True)
+    
+    # Alternative: Use dataframe with column config
+    col_config = {
+        "Signal": st.column_config.TextColumn(
+            "Signal",
+            help="BUY/SELL/HOLD signal",
+            width="medium"
+        )
+    }
+    
+    # Better display using st.dataframe with column config
+    display_df = df[['Stock', 'LTP (₹)', 'Change %', 'RSI', 'Stoch %K', 'Signal']].copy()
+    
+    def color_signal(val):
+        if "BUY" in str(val):
+            return "🟢 BUY"
+        elif "SELL" in str(val):
+            return "🔴 SELL"
+        return "🟡 HOLD"
+    
+    display_df['Signal'] = display_df['Signal'].apply(color_signal)
+    
+    # Use dataframe with conditional formatting
     st.dataframe(
-        display_df.style.applymap(highlight_signal, subset=['Signal']),
+        display_df,
         use_container_width=True,
-        height=400
+        height=400,
+        column_config={
+            "Stock": "Stock",
+            "LTP (₹)": st.column_config.NumberColumn("LTP (₹)", format="₹%.2f"),
+            "Change %": st.column_config.NumberColumn("Change %", format="%.2f%%"),
+            "RSI": st.column_config.NumberColumn("RSI", format="%.1f"),
+            "Stoch %K": st.column_config.NumberColumn("Stoch %K", format="%.1f"),
+            "Signal": st.column_config.TextColumn("Signal"),
+        }
     )
     
-    # Summary
-    col1, col2, col3, col4 = st.columns(4)
-    buys = len(df[df['Signal'] == '🟢 BUY'])
-    sells = len(df[df['Signal'] == '🔴 SELL'])
+    # ── SUMMARY ─────────────────────────────────────────────────────
+    st.markdown("### 📈 Summary")
+    col1, col2, col3, col4, col5 = st.columns(5)
     
-    col1.metric("🟢 BUY", buys)
-    col2.metric("🔴 SELL", sells)
-    col3.metric("📈 Avg RSI", round(df['RSI'].mean(), 1))
-    col4.metric("📊 Total", len(df))
+    buys = len(df[df['Signal_Text'] == 'BUY'])
+    sells = len(df[df['Signal_Text'] == 'SELL'])
+    holds = len(df[df['Signal_Text'] == 'HOLD'])
     
-    # Show warning if using fallback
-    if used_fallback:
-        st.warning("⚠️ Using demo data (APIs temporarily unavailable)")
+    with col1:
+        st.metric("🟢 BUY", buys)
+    with col2:
+        st.metric("🔴 SELL", sells)
+    with col3:
+        st.metric("🟡 HOLD", holds)
+    with col4:
+        st.metric("📈 Avg RSI", f"{df['RSI'].mean():.1f}")
+    with col5:
+        st.metric("📊 Total", len(df))
     
-    # Download
-    csv = df.to_csv(index=False)
-    st.download_button(
-        "📥 Download CSV",
-        csv,
-        f"NSE_Signals_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
-        "text/csv",
-        use_container_width=True
-    )
+    if is_fallback:
+        st.warning("⚠️ Using demo data (live data temporarily unavailable)")
     
-    # Detail view
+    # ── DETAILED VIEW ──────────────────────────────────────────────
     with st.expander("📋 Detailed View", expanded=False):
         for _, row in df.iterrows():
             sig = row['Signal']
-            cls = "buy" if "BUY" in sig else ("sell" if "SELL" in sig else "hold")
-            col1, col2, col3, col4, col5, col6 = st.columns([2, 2, 2, 2, 2, 2])
-            col1.write(f"**{row['Stock']}**")
-            col2.write(f"₹{row['LTP (₹)']:.2f}")
-            col3.write(f"{row['Change %']:.1f}%")
-            col4.write(f"{row['RSI']:.1f}")
-            col5.write(f"{row['Stoch %K']:.1f}")
-            col6.markdown(f'<span class="{cls}">{sig}</span>', unsafe_allow_html=True)
+            cls = "buy-badge" if "BUY" in sig else ("sell-badge" if "SELL" in sig else "hold-badge")
+            
+            cols = st.columns([2, 2, 2, 2, 2, 2])
+            cols[0].write(f"**{row['Stock']}**")
+            cols[1].write(f"₹{row['LTP (₹)']:.2f}")
+            
+            # Color for change %
+            if row['Change %'] > 0:
+                cols[2].write(f"🟢 {row['Change %']:.2f}%")
+            elif row['Change %'] < 0:
+                cols[2].write(f"🔴 {row['Change %']:.2f}%")
+            else:
+                cols[2].write(f"{row['Change %']:.2f}%")
+            
+            cols[3].write(f"{row['RSI']:.1f}")
+            cols[4].write(f"{row['Stoch %K']:.1f}")
+            cols[5].markdown(f'<span class="{cls}">{sig}</span>', unsafe_allow_html=True)
             st.divider()
+    
+    # ── DOWNLOAD ────────────────────────────────────────────────────
+    csv = df.to_csv(index=False)
+    st.download_button(
+        label="📥 Download CSV",
+        data=csv,
+        file_name=f"NSE_Signals_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+        mime="text/csv",
+        use_container_width=True
+    )
 
 else:
     st.error("❌ No data available")
-    st.info("💡 Try:\n- Refresh after 1 minute\n- Check internet connection\n- Use demo data below")
+    st.info("💡 Try refreshing after 1 minute")
 
-    # Demo data button
-    if st.button("📊 Show Demo Data"):
-        demo = get_fallback_data()
-        df_demo = pd.DataFrame(demo)
-        st.dataframe(df_demo, use_container_width=True)
-
+# ── FOOTER ─────────────────────────────────────────────────────────
 st.markdown("---")
-st.caption("⚠️ **Disclaimer:** Educational only. Not financial advice.")
+st.caption("⚠️ **Disclaimer:** Educational purposes only. Not financial advice.")
 st.caption(f"📊 Watchlist: {len(NSE_STOCKS)} stocks")
