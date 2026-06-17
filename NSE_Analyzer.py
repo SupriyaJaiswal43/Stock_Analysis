@@ -1,12 +1,12 @@
 """
-NSE Stock Analyzer - Responsive Web App
-=======================================
+NSE Stock Analyzer - Web Version (Same Logic as Excel)
+==================================================
 • Live data via yfinance ONLY
 • 3 Timeframes: 1H, 4H, 1D
-• Heikin Ashi candles
+• Heikin Ashi candles for all timeframes
 • Custom Signal: BUY (RSI>40 & Stoch>20) | SELL (RSI<70 & Stoch<80)
 • Top 10 stocks by performance
-• Mobile + Laptop Responsive
+• URL Access - Streamlit Web App
 """
 
 import streamlit as st
@@ -22,7 +22,7 @@ warnings.filterwarnings("ignore")
 TIMEFRAMES = ["1h", "4h", "1d"]
 LOOKBACK_DAYS = 60
 
-# SIGNAL RULES
+# SIGNAL RULES (Same as Excel version)
 BUY_RSI = 40
 BUY_STOCH = 20
 SELL_RSI = 70
@@ -31,6 +31,11 @@ SELL_STOCH = 80
 RSI_PERIOD = 14
 STOCH_K = 14
 STOCH_D = 3
+MACD_FAST = 12
+MACD_SLOW = 26
+MACD_SIG = 9
+BB_PERIOD = 20
+BB_STD = 2
 
 NSE_STOCKS = {
     "RELIANCE": "RELIANCE.NS",
@@ -50,7 +55,7 @@ NSE_STOCKS = {
     "SBIN": "SBIN.NS",
 }
 
-# ── FUNCTIONS ──────────────────────────────────────────────────────
+# ── HEIKIN ASHI ────────────────────────────────────────────────────
 def to_heikin_ashi(df):
     ha = df.copy()
     ha["HA_Close"] = (df["Open"] + df["High"] + df["Low"] + df["Close"]) / 4
@@ -62,6 +67,7 @@ def to_heikin_ashi(df):
     ha["HA_Low"] = ha[["HA_Open", "HA_Close", "Low"]].min(axis=1)
     return ha
 
+# ── INDICATORS ─────────────────────────────────────────────────────
 def calc_rsi(close, period=14):
     delta = close.diff()
     gain = delta.clip(lower=0).ewm(com=period-1, adjust=False).mean()
@@ -82,22 +88,23 @@ def calc_macd(close, fast=12, slow=26, sig=9):
     sl = ml.ewm(span=sig, adjust=False).mean()
     return ml, sl, ml - sl
 
+def calc_bb(close, p=20, s=2):
+    sma = close.rolling(p).mean()
+    std = close.rolling(p).std()
+    return sma, sma + s * std, sma - s * std
+
+def calc_ema(close, p=21):
+    return close.ewm(span=p, adjust=False).mean()
+
+# ── SIGNAL FUNCTIONS (Same as Excel) ─────────────────────────────
 def get_signal(rsi, stk):
     if pd.isna(rsi) or pd.isna(stk):
-        return "WAIT"
+        return "⏳ WAIT"
     if rsi > BUY_RSI and stk > BUY_STOCH:
-        return "BUY"
-    if rsi < SELL_RSI and stk < SELL_STOCH:
-        return "SELL"
-    return "HOLD"
-
-def get_signal_display(signal):
-    if signal == "BUY":
         return "🟢 BUY"
-    elif signal == "SELL":
+    if rsi < SELL_RSI and stk < SELL_STOCH:
         return "🔴 SELL"
-    else:
-        return "🟡 HOLD"
+    return "🟡 HOLD"
 
 def signal_strength(rsi, stk, macd_h, vol, avg_vol):
     score = 0
@@ -117,7 +124,20 @@ def signal_strength(rsi, stk, macd_h, vol, avg_vol):
         score += 10
     return min(100, score)
 
+def sig_short(sig):
+    if not isinstance(sig, str):
+        return "WAIT"
+    if "BUY" in sig:
+        return "BUY"
+    if "SELL" in sig:
+        return "SELL"
+    if "HOLD" in sig:
+        return "HOLD"
+    return "WAIT"
+
+# ── FETCH LIVE DATA ──────────────────────────────────────────────
 def fetch_live_data(ticker, interval):
+    """Fetch live data from yfinance"""
     try:
         df = yf.download(ticker, period=f"{LOOKBACK_DAYS}d",
                          interval=interval, progress=False, auto_adjust=True, timeout=20)
@@ -130,7 +150,9 @@ def fetch_live_data(ticker, interval):
     except Exception as e:
         return None, False
 
+# ── ANALYSE ────────────────────────────────────────────────────────
 def analyse_stock(name, ticker, interval):
+    """Analyse single stock for given timeframe"""
     df, is_live = fetch_live_data(ticker, interval)
     
     if not is_live or df is None:
@@ -140,6 +162,11 @@ def analyse_stock(name, ticker, interval):
     ha["RSI"] = calc_rsi(ha["HA_Close"], RSI_PERIOD)
     ha["SK"], ha["SD"] = calc_stoch(ha["HA_High"], ha["HA_Low"], ha["HA_Close"], STOCH_K, STOCH_D)
     ha["MACD"], ha["MSIG"], ha["MHIST"] = calc_macd(ha["HA_Close"])
+    ha["BB_MID"], ha["BB_UP"], ha["BB_LO"] = calc_bb(ha["HA_Close"])
+    ha["EMA21"] = calc_ema(ha["HA_Close"], 21)
+    ha["EMA9"] = calc_ema(ha["HA_Close"], 9)
+    ha["SUPP"] = ha["HA_Low"].rolling(20).min()
+    ha["RES"] = ha["HA_High"].rolling(20).max()
     ha["VOLAVG"] = ha["Volume"].rolling(20).mean()
 
     lat = ha.iloc[-1]
@@ -154,6 +181,14 @@ def analyse_stock(name, ticker, interval):
     mh = float(lat["MHIST"]) if pd.notna(lat["MHIST"]) else 0
     va = float(lat["VOLAVG"]) if pd.notna(lat["VOLAVG"]) else float("nan")
     str_ = signal_strength(rsi, sk, mh, float(lat["Volume"]) if pd.notna(lat["Volume"]) else 0, va)
+    sup = round(float(lat["SUPP"]), 2) if pd.notna(lat["SUPP"]) else None
+    res = round(float(lat["RES"]), 2) if pd.notna(lat["RES"]) else None
+
+    # Count signals in history
+    signals = ha.apply(lambda r: get_signal(r["RSI"] if pd.notna(r["RSI"]) else 50,
+                                            r["SK"] if pd.notna(r["SK"]) else 50), axis=1)
+    buy_candles = int((signals == "🟢 BUY").sum())
+    sell_candles = int((signals == "🔴 SELL").sum())
 
     return {
         "Stock": name,
@@ -164,14 +199,22 @@ def analyse_stock(name, ticker, interval):
         "RSI": rsi,
         "Stoch %K": sk,
         "Stoch %D": sd,
-        "Signal": get_signal_display(sig),
-        "Signal_Text": sig,
+        "Signal": sig,
         "Strength": str_,
         "MACD Hist": round(mh, 4) if not np.isnan(mh) else 0,
+        "BB Upper": round(float(lat["BB_UP"]), 2) if pd.notna(lat["BB_UP"]) else None,
+        "BB Lower": round(float(lat["BB_LO"]), 2) if pd.notna(lat["BB_LO"]) else None,
+        "Support": sup,
+        "Resistance": res,
+        "Buy Candles": buy_candles,
+        "Sell Candles": sell_candles,
+        "As of": ha.index[-1].strftime("%d-%b-%Y %H:%M"),
     }
 
+# ── GET TOP 10 ─────────────────────────────────────────────────────
 @st.cache_data(ttl=300)
 def get_top_10_stocks():
+    """Get top 10 stocks based on 1H performance"""
     results_by_tf = {}
     
     for tf in TIMEFRAMES:
@@ -186,6 +229,7 @@ def get_top_10_stocks():
                 continue
         results_by_tf[tf] = tf_results
     
+    # Get top 10 based on 1H Change
     if "1h" in results_by_tf and results_by_tf["1h"]:
         sorted_stocks = sorted(results_by_tf["1h"], key=lambda x: x["Change (%)"], reverse=True)
         top_10_names = [r["Stock"] for r in sorted_stocks[:10]]
@@ -194,212 +238,52 @@ def get_top_10_stocks():
     
     return results_by_tf, top_10_names
 
-# ── RESPONSIVE STREAMLIT UI ──────────────────────────────────────
+# ── STREAMLIT UI ──────────────────────────────────────────────────
 st.set_page_config(
-    page_title="NSE Stock Analyzer",
+    page_title="NSE Top 10 Signals",
     page_icon="📊",
-    layout="wide",
-    initial_sidebar_state="collapsed"
+    layout="wide"
 )
 
-# ── CUSTOM CSS FOR RESPONSIVE DESIGN ─────────────────────────────
+# Custom CSS
 st.markdown("""
 <style>
-    /* Mobile First Design */
-    .main-title {
-        font-size: 24px !important;
-        font-weight: bold !important;
-        text-align: center !important;
-        color: #1F3864 !important;
-        padding: 10px 0 !important;
-    }
-    
-    .sub-title {
-        text-align: center !important;
-        color: #666 !important;
-        font-size: 14px !important;
-        margin-bottom: 15px !important;
-    }
-    
-    /* Signal Badges */
-    .badge-buy {
-        background-color: #C6EFCE !important;
-        color: #276221 !important;
-        padding: 4px 12px !important;
-        border-radius: 20px !important;
-        font-weight: bold !important;
-        font-size: 13px !important;
-        display: inline-block !important;
-    }
-    .badge-sell {
-        background-color: #FFC7CE !important;
-        color: #9C0006 !important;
-        padding: 4px 12px !important;
-        border-radius: 20px !important;
-        font-weight: bold !important;
-        font-size: 13px !important;
-        display: inline-block !important;
-    }
-    .badge-hold {
-        background-color: #FFEB9C !important;
-        color: #9C5700 !important;
-        padding: 4px 12px !important;
-        border-radius: 20px !important;
-        font-weight: bold !important;
-        font-size: 13px !important;
-        display: inline-block !important;
-    }
-    .badge-wait {
-        background-color: #D9D9D9 !important;
-        color: #666666 !important;
-        padding: 4px 12px !important;
-        border-radius: 20px !important;
-        font-weight: bold !important;
-        font-size: 13px !important;
-        display: inline-block !important;
-    }
-    
-    /* Metric Cards */
-    .metric-card {
-        background-color: #f8f9fa;
-        border-radius: 10px;
-        padding: 12px 10px;
-        text-align: center;
-        border: 1px solid #e9ecef;
-        margin: 4px 0;
-    }
-    .metric-value {
-        font-size: 20px !important;
-        font-weight: bold !important;
-    }
-    .metric-label {
-        font-size: 11px !important;
-        color: #6c757d !important;
-        margin-top: 2px !important;
-    }
-    
-    /* Stock Row */
-    .stock-row {
-        background-color: white;
-        border-radius: 8px;
-        padding: 12px 10px;
-        margin: 6px 0;
-        border: 1px solid #e9ecef;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-    }
-    .stock-name {
-        font-weight: bold !important;
-        font-size: 16px !important;
-    }
-    .stock-ltp {
-        font-size: 15px !important;
-        font-weight: bold !important;
-    }
-    .stock-change-positive {
-        color: #28a745 !important;
-        font-weight: bold !important;
-    }
-    .stock-change-negative {
-        color: #dc3545 !important;
-        font-weight: bold !important;
-    }
-    
-    /* Responsive Grid */
-    @media (max-width: 768px) {
-        .main-title {
-            font-size: 20px !important;
-        }
-        .stock-name {
-            font-size: 14px !important;
-        }
-        .metric-value {
-            font-size: 16px !important;
-        }
-        .badge-buy, .badge-sell, .badge-hold, .badge-wait {
-            font-size: 11px !important;
-            padding: 3px 8px !important;
-        }
-    }
-    
-    @media (max-width: 480px) {
-        .main-title {
-            font-size: 18px !important;
-        }
-        .stock-name {
-            font-size: 13px !important;
-        }
-        .stock-ltp {
-            font-size: 13px !important;
-        }
-    }
-    
-    /* Hide default Streamlit elements */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
-    
-    /* Custom scroll */
-    ::-webkit-scrollbar {
-        width: 6px;
-        height: 6px;
-    }
-    ::-webkit-scrollbar-track {
-        background: #f1f1f1;
-        border-radius: 10px;
-    }
-    ::-webkit-scrollbar-thumb {
-        background: #c1c1c1;
-        border-radius: 10px;
-    }
-    ::-webkit-scrollbar-thumb:hover {
-        background: #a8a8a8;
-    }
-    
-    /* Container padding */
-    .block-container {
-        padding-top: 1rem !important;
-        padding-bottom: 1rem !important;
-    }
+    .title { font-size: 32px; font-weight: bold; text-align: center; color: #1F3864; }
+    .buy { background-color: #C6EFCE; color: #276221; padding: 4px 12px; border-radius: 12px; font-weight: bold; }
+    .sell { background-color: #FFC7CE; color: #9C0006; padding: 4px 12px; border-radius: 12px; font-weight: bold; }
+    .hold { background-color: #FFEB9C; color: #9C5700; padding: 4px 12px; border-radius: 12px; font-weight: bold; }
+    .wait { background-color: #D9D9D9; color: #666666; padding: 4px 12px; border-radius: 12px; font-weight: bold; }
+    .strength-high { background-color: #C6EFCE; color: #276221; }
+    .strength-mid { background-color: #FFEB9C; color: #9C5700; }
+    .strength-low { background-color: #FFC7CE; color: #9C0006; }
 </style>
 """, unsafe_allow_html=True)
 
 # ── HEADER ─────────────────────────────────────────────────────────
-st.markdown('<p class="main-title">📊 NSE Top 10 Stock Signals</p>', unsafe_allow_html=True)
-st.markdown(f'<p class="sub-title">🕐 {datetime.now().strftime("%d-%b-%Y %H:%M:%S")} IST | Live Data</p>', unsafe_allow_html=True)
+st.markdown('<p class="title">📊 NSE Top 10 - Multi-Timeframe Signals</p>', unsafe_allow_html=True)
+st.caption(f"🕐 {datetime.now().strftime('%d-%b-%Y %H:%M:%S')} IST")
 
-# ── RULES (Responsive Cards) ─────────────────────────────────────
-st.markdown("""
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin: 10px 0;">
-    <div style="background-color: #C6EFCE; padding: 10px; border-radius: 8px; text-align: center; border: 1px solid #a8d5b3;">
-        <span style="font-weight: bold; color: #276221;">🟢 BUY</span><br>
-        <span style="font-size: 12px; color: #276221;">RSI > 40 & Stoch > 20</span>
-    </div>
-    <div style="background-color: #FFC7CE; padding: 10px; border-radius: 8px; text-align: center; border: 1px solid #f5a3a3;">
-        <span style="font-weight: bold; color: #9C0006;">🔴 SELL</span><br>
-        <span style="font-size: 12px; color: #9C0006;">RSI < 70 & Stoch < 80</span>
-    </div>
-    <div style="background-color: #FFEB9C; padding: 10px; border-radius: 8px; text-align: center; border: 1px solid #e8d57a;">
-        <span style="font-weight: bold; color: #9C5700;">🟡 HOLD</span><br>
-        <span style="font-size: 12px; color: #9C5700;">No clear signal</span>
-    </div>
-    <div style="background-color: #E3F2FD; padding: 10px; border-radius: 8px; text-align: center; border: 1px solid #BBDEFB;">
-        <span style="font-weight: bold; color: #0D47A1;">📈 TOP 10</span><br>
-        <span style="font-size: 12px; color: #0D47A1;">By 1H Performance</span>
-    </div>
-</div>
-""", unsafe_allow_html=True)
+# ── RULES ──────────────────────────────────────────────────────────
+col1, col2, col3, col4 = st.columns(4)
+with col1:
+    st.info(f"🟢 **BUY:** RSI > {BUY_RSI} & Stoch > {BUY_STOCH}")
+with col2:
+    st.error(f"🔴 **SELL:** RSI < {SELL_RSI} & Stoch < {SELL_STOCH}")
+with col3:
+    st.warning("🟡 **HOLD:** No clear signal")
+with col4:
+    st.caption("📊 **Heikin Ashi** candles")
 
 # ── REFRESH ────────────────────────────────────────────────────────
-col_refresh, col_empty = st.columns([1, 3])
-with col_refresh:
-    if st.button("🔄 Refresh", use_container_width=True):
-        st.cache_data.clear()
-        st.rerun()
+if st.button("🔄 Refresh Data", use_container_width=True):
+    st.cache_data.clear()
+    st.rerun()
 
 # ── FETCH DATA ─────────────────────────────────────────────────────
-with st.spinner("📈 Fetching live data..."):
+with st.spinner("📈 Fetching live data from Yahoo Finance..."):
     results_by_tf, top_10_names = get_top_10_stocks()
 
+# ── PREPARE DATA FOR DISPLAY ─────────────────────────────────────
 all_results = {}
 for tf, res_list in results_by_tf.items():
     for r in res_list:
@@ -407,213 +291,162 @@ for tf, res_list in results_by_tf.items():
             all_results[(r["Stock"], tf)] = r
 
 if top_10_names:
+    # ── DASHBOARD ────────────────────────────────────────────────────
+    st.markdown("### 📊 Multi-Timeframe Dashboard")
     
-    # ── SUMMARY METRICS (Responsive) ──────────────────────────────
-    st.markdown("### 📊 Summary")
-    
-    # Calculate metrics
-    buy_count = 0
-    sell_count = 0
-    hold_count = 0
-    
+    # Prepare data for display
+    dash_data = []
     for stock in top_10_names:
-        r = all_results.get((stock, "1h"))
-        if r:
-            if r["Signal_Text"] == "BUY":
-                buy_count += 1
-            elif r["Signal_Text"] == "SELL":
-                sell_count += 1
+        row = {"Stock": stock}
+        for tf in TIMEFRAMES:
+            r = all_results.get((stock, tf))
+            if r:
+                row[f"{tf}_RSI"] = r["RSI"]
+                row[f"{tf}_SK"] = r["Stoch %K"]
+                row[f"{tf}_Signal"] = r["Signal"]
+                row[f"{tf}_Strength"] = r["Strength"]
+                row[f"{tf}_LTP"] = r["LTP (₹)"]
+                row[f"{tf}_Change"] = r["Change (%)"]
             else:
-                hold_count += 1
+                row[f"{tf}_RSI"] = "-"
+                row[f"{tf}_SK"] = "-"
+                row[f"{tf}_Signal"] = "⏳ WAIT"
+                row[f"{tf}_Strength"] = 0
+                row[f"{tf}_LTP"] = "-"
+                row[f"{tf}_Change"] = 0
+        dash_data.append(row)
     
-    cols = st.columns(5)
-    cols[0].metric("🟢 BUY", buy_count)
-    cols[1].metric("🔴 SELL", sell_count)
-    cols[2].metric("🟡 HOLD", hold_count)
+    df_dash = pd.DataFrame(dash_data)
     
-    # Calculate average RSI from 1H
-    rsi_values = []
+    # Display as columns
+    for idx, row in df_dash.iterrows():
+        st.divider()
+        cols = st.columns([1.5, 1, 1, 1, 1, 1, 1, 1, 1])
+        
+        # Stock name
+        cols[0].markdown(f"**{row['Stock']}**")
+        
+        # 1H data
+        sig1 = row['1h_Signal']
+        bg1 = "buy" if "BUY" in sig1 else ("sell" if "SELL" in sig1 else ("hold" if "HOLD" in sig1 else "wait"))
+        cols[1].metric("1H RSI", row['1h_RSI'])
+        cols[2].metric("1H SK", row['1h_SK'])
+        cols[3].markdown(f'<span class="{bg1}">{sig1}</span>', unsafe_allow_html=True)
+        
+        # 4H data
+        sig4 = row['4h_Signal']
+        bg4 = "buy" if "BUY" in sig4 else ("sell" if "SELL" in sig4 else ("hold" if "HOLD" in sig4 else "wait"))
+        cols[4].metric("4H RSI", row['4h_RSI'])
+        cols[5].metric("4H SK", row['4h_SK'])
+        cols[6].markdown(f'<span class="{bg4}">{sig4}</span>', unsafe_allow_html=True)
+        
+        # 1D data
+        sigD = row['1d_Signal']
+        bgD = "buy" if "BUY" in sigD else ("sell" if "SELL" in sigD else ("hold" if "HOLD" in sigD else "wait"))
+        cols[7].metric("1D RSI", row['1d_RSI'])
+        cols[8].metric("1D SK", row['1d_SK'])
+        
+        # Extra row for signals
+        st.divider()
+        cols2 = st.columns([1.5, 1, 1, 1, 1, 1, 1, 1, 1])
+        cols2[0].write("")
+        cols2[1].write("")
+        cols2[2].write("")
+        cols2[3].markdown(f'<span class="{bg1}">{sig1}</span>', unsafe_allow_html=True)
+        cols2[4].write("")
+        cols2[5].write("")
+        cols2[6].markdown(f'<span class="{bg4}">{sig4}</span>', unsafe_allow_html=True)
+        cols2[7].write("")
+        cols2[8].markdown(f'<span class="{bgD}">{sigD}</span>', unsafe_allow_html=True)
+
+    # ── SUMMARY ─────────────────────────────────────────────────────
+    st.markdown("---")
+    st.markdown("### 📈 Summary")
+    
+    # Count signals across timeframes
+    summary_data = []
     for stock in top_10_names:
-        r = all_results.get((stock, "1h"))
-        if r:
-            rsi_values.append(r["RSI"])
-    avg_rsi = round(sum(rsi_values) / len(rsi_values), 1) if rsi_values else 0
-    cols[3].metric("📈 Avg RSI", avg_rsi)
-    cols[4].metric("📊 Total", len(top_10_names))
+        row = {"Stock": stock}
+        for tf in TIMEFRAMES:
+            r = all_results.get((stock, tf))
+            if r:
+                row[f"{tf}_Signal"] = r["Signal"]
+                row[f"{tf}_LTP"] = r["LTP (₹)"]
+                row[f"{tf}_Change"] = r["Change (%)"]
+            else:
+                row[f"{tf}_Signal"] = "⏳ WAIT"
+                row[f"{tf}_LTP"] = "-"
+                row[f"{tf}_Change"] = 0
+        summary_data.append(row)
     
-    # ── TOP 10 STOCKS (Responsive Cards) ──────────────────────────
-    st.markdown("---")
-    st.markdown("### 🏆 Top 10 Stocks")
+    df_summary = pd.DataFrame(summary_data)
     
-    for idx, stock in enumerate(top_10_names, 1):
-        r1h = all_results.get((stock, "1h"))
-        r4h = all_results.get((stock, "4h"))
-        r1d = all_results.get((stock, "1d"))
+    # Display summary table
+    cols = st.columns([2, 2, 2, 2, 2])
+    cols[0].write("**Stock**")
+    cols[1].write("**1H**")
+    cols[2].write("**4H**")
+    cols[3].write("**1D**")
+    cols[4].write("**LTP**")
+    
+    for _, row in df_summary.iterrows():
+        cols = st.columns([2, 2, 2, 2, 2])
+        cols[0].write(row['Stock'])
         
-        if r1h:
-            # Get signal badge class
-            sig = r1h["Signal_Text"]
-            badge_class = "badge-buy" if sig == "BUY" else ("badge-sell" if sig == "SELL" else "badge-hold")
-            
-            # Change color
-            change = r1h["Change (%)"]
-            change_class = "stock-change-positive" if change >= 0 else "stock-change-negative"
-            change_icon = "🟢" if change >= 0 else "🔴"
-            
-            # Card HTML
-            st.markdown(f"""
-            <div class="stock-row">
-                <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
-                    <div style="min-width: 35px;">
-                        <span style="font-weight: bold; color: #888;">#{idx}</span>
-                    </div>
-                    <div style="flex: 1; min-width: 70px;">
-                        <span class="stock-name">{stock}</span>
-                    </div>
-                    <div style="min-width: 70px; text-align: right;">
-                        <span class="stock-ltp">₹{r1h['LTP (₹)']:.2f}</span>
-                    </div>
-                    <div style="min-width: 60px; text-align: right;">
-                        <span class="{change_class}">{change_icon} {change:.2f}%</span>
-                    </div>
-                    <div style="min-width: 50px; text-align: center;">
-                        <span class="metric-label">RSI</span>
-                        <div style="font-weight: bold;">{r1h['RSI']:.1f}</div>
-                    </div>
-                    <div style="min-width: 50px; text-align: center;">
-                        <span class="metric-label">Stoch</span>
-                        <div style="font-weight: bold;">{r1h['Stoch %K']:.1f}</div>
-                    </div>
-                    <div style="min-width: 80px; text-align: center;">
-                        <span class="{badge_class}">{r1h['Signal']}</span>
-                    </div>
-                </div>
-                <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; font-size: 12px; color: #888;">
-                    <span>4H: {r4h['Signal'] if r4h else '⏳ WAIT'}</span>
-                    <span>|</span>
-                    <span>1D: {r1d['Signal'] if r1d else '⏳ WAIT'}</span>
-                    <span>|</span>
-                    <span>Strength: {r1h['Strength']}</span>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-    
-    # ── DETAILED TABLE (Collapsible) ──────────────────────────────
-    with st.expander("📋 View Detailed Table", expanded=False):
-        table_data = []
+        sig1 = row['1h_Signal']
+        bg1 = "buy" if "BUY" in sig1 else ("sell" if "SELL" in sig1 else ("hold" if "HOLD" in sig1 else "wait"))
+        cols[1].markdown(f'<span class="{bg1}">{sig1}</span>', unsafe_allow_html=True)
+        
+        sig4 = row['4h_Signal']
+        bg4 = "buy" if "BUY" in sig4 else ("sell" if "SELL" in sig4 else ("hold" if "HOLD" in sig4 else "wait"))
+        cols[2].markdown(f'<span class="{bg4}">{sig4}</span>', unsafe_allow_html=True)
+        
+        sigD = row['1d_Signal']
+        bgD = "buy" if "BUY" in sigD else ("sell" if "SELL" in sigD else ("hold" if "HOLD" in sigD else "wait"))
+        cols[3].markdown(f'<span class="{bgD}">{sigD}</span>', unsafe_allow_html=True)
+        
+        # Get LTP from 1H
+        r1h = all_results.get((row['Stock'], "1h"))
+        cols[4].write(f"₹{r1h['LTP (₹)']:.2f}" if r1h else "-")
+
+    # ── DETAILED VIEW ──────────────────────────────────────────────
+    with st.expander("📋 Detailed View (All Metrics)", expanded=False):
         for stock in top_10_names:
-            row = {"Stock": stock}
+            st.markdown(f"**{stock}**")
+            tf_data = {}
             for tf in TIMEFRAMES:
                 r = all_results.get((stock, tf))
                 if r:
-                    row[f"{tf}_Signal"] = r["Signal"]
-                    row[f"{tf}_RSI"] = r["RSI"]
-                    row[f"{tf}_SK"] = r["Stoch %K"]
-                    row[f"{tf}_LTP"] = r["LTP (₹)"]
-                    row[f"{tf}_Change"] = r["Change (%)"]
-                    row[f"{tf}_Strength"] = r["Strength"]
-                else:
-                    row[f"{tf}_Signal"] = "⏳ WAIT"
-                    row[f"{tf}_RSI"] = "-"
-                    row[f"{tf}_SK"] = "-"
-                    row[f"{tf}_LTP"] = "-"
-                    row[f"{tf}_Change"] = "-"
-                    row[f"{tf}_Strength"] = "-"
-            table_data.append(row)
-        
-        df_table = pd.DataFrame(table_data)
-        
-        # Show as dataframe
-        display_cols = ['Stock', '1h_Signal', '1h_RSI', '1h_SK', 
-                       '4h_Signal', '4h_RSI', '4h_SK',
-                       '1d_Signal', '1d_RSI', '1d_SK']
-        
-        st.dataframe(
-            df_table[display_cols],
-            use_container_width=True,
-            column_config={
-                "Stock": "Stock",
-                "1h_Signal": "1H Signal",
-                "1h_RSI": "1H RSI",
-                "1h_SK": "1H SK",
-                "4h_Signal": "4H Signal",
-                "4h_RSI": "4H RSI",
-                "4h_SK": "4H SK",
-                "1d_Signal": "1D Signal",
-                "1d_RSI": "1D RSI",
-                "1d_SK": "1D SK",
-            }
-        )
-    
-    # ── DOWNLOAD ────────────────────────────────────────────────────
-    st.markdown("---")
-    col_download1, col_download2 = st.columns([1, 3])
-    with col_download1:
-        # Prepare download data
-        download_data = []
-        for stock in top_10_names:
-            row = {"Stock": stock}
-            for tf in TIMEFRAMES:
-                r = all_results.get((stock, tf))
-                if r:
-                    row[f"{tf}_Signal"] = r["Signal"]
-                    row[f"{tf}_RSI"] = r["RSI"]
-                    row[f"{tf}_Stoch"] = r["Stoch %K"]
-                    row[f"{tf}_LTP"] = r["LTP (₹)"]
-                    row[f"{tf}_Change"] = r["Change (%)"]
-                    row[f"{tf}_Strength"] = r["Strength"]
-                else:
-                    row[f"{tf}_Signal"] = "WAIT"
-                    row[f"{tf}_RSI"] = "-"
-                    row[f"{tf}_Stoch"] = "-"
-                    row[f"{tf}_LTP"] = "-"
-                    row[f"{tf}_Change"] = "-"
-                    row[f"{tf}_Strength"] = "-"
-            download_data.append(row)
-        
-        df_download = pd.DataFrame(download_data)
-        csv = df_download.to_csv(index=False)
-        
-        st.download_button(
-            label="📥 Download CSV",
-            data=csv,
-            file_name=f"NSE_Signals_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
-            mime="text/csv",
-            use_container_width=True
-        )
+                    tf_data[tf] = r
+            
+            if tf_data:
+                detail_cols = st.columns(len(tf_data) + 1)
+                detail_cols[0].write("**Metric**")
+                for i, tf in enumerate(TIMEFRAMES, 1):
+                    detail_cols[i].write(f"**{tf}**")
+                
+                metrics = ["LTP (₹)", "Change (%)", "RSI", "Stoch %K", "Signal", "Strength", "MACD Hist"]
+                for metric in metrics:
+                    detail_cols = st.columns(len(tf_data) + 1)
+                    detail_cols[0].write(metric)
+                    for i, tf in enumerate(TIMEFRAMES, 1):
+                        r = tf_data.get(tf)
+                        if r:
+                            val = r.get(metric, "-")
+                            if metric == "Signal":
+                                sig = val
+                                bg = "buy" if "BUY" in sig else ("sell" if "SELL" in sig else ("hold" if "HOLD" in sig else "wait"))
+                                detail_cols[i].markdown(f'<span class="{bg}">{sig}</span>', unsafe_allow_html=True)
+                            else:
+                                detail_cols[i].write(val)
+                        else:
+                            detail_cols[i].write("-")
+            st.divider()
 
 else:
     st.error("❌ No data available. Please try again later.")
-    st.info("💡 Tips:\n- Check internet connection\n- Refresh after 1-2 minutes")
-
-# ── FEATURES LIST (Collapsible) ──────────────────────────────────
-with st.expander("ℹ️ Features & How to Use", expanded=False):
-    st.markdown("""
-    ### 📊 Features
-    
-    | Feature | Description |
-    |---------|-------------|
-    | **Live Data** | Real-time data from Yahoo Finance |
-    | **Multi-Timeframe** | 1H, 4H, 1D analysis |
-    | **Heikin Ashi** | Smoothed candles for clear trends |
-    | **Signal Rules** | BUY: RSI>40 & Stoch>20 \| SELL: RSI<70 & Stoch<80 |
-    | **Top 10** | Best performing stocks based on 1H change |
-    | **Mobile Friendly** | Works on phone, tablet, laptop |
-    
-    ### 🎯 How to Use
-    
-    1. Open this URL on any device
-    2. Click **Refresh** for latest data
-    3. Check **BUY/SELL/HOLD** signals
-    4. Use **Download CSV** for analysis
-    
-    ### ⚠️ Disclaimer
-    
-    Educational purposes only. Not financial advice.
-    Always verify with your broker before trading.
-    """)
 
 # ── FOOTER ─────────────────────────────────────────────────────────
 st.markdown("---")
+st.caption("⚠️ **Disclaimer:** Educational purposes only. Not financial advice.")
 st.caption(f"📊 Watchlist: {len(NSE_STOCKS)} stocks | Timeframes: 1H, 4H, 1D | Heikin Ashi")
-st.caption("⚠️ Educational purposes only. Not financial advice.")
