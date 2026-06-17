@@ -1,11 +1,13 @@
 """
-NSE Stock Analyzer - Responsive Web Version
-============================================
+NSE Stock Analyzer - NIFTY 50 Top 10
+=====================================
 • Live data via yfinance ONLY
 • 3 Timeframes: 1H, 4H, 1D
 • Heikin Ashi candles
-• Compact Card UI — Mobile + Tablet + Desktop friendly
-• Minimal scroll with tabbed timeframe view
+• Custom Signal: BUY (RSI>40 & Stoch>20) | SELL (RSI<70 & Stoch<80)
+• Top 10 from NIFTY 50 stocks
+• Mobile + Laptop Responsive
+• Created by Supriya Jaiswal
 """
 
 import streamlit as st
@@ -20,35 +22,69 @@ warnings.filterwarnings("ignore")
 
 # ── CONFIG ─────────────────────────────────────────────────────────
 TIMEFRAMES = ["1h", "4h", "1d"]
-LOOKBACK_DAYS = 60
+LOOKBACK_DAYS = 30  # Reduced for speed
 BUY_RSI, BUY_STOCH = 40, 20
 SELL_RSI, SELL_STOCH = 70, 80
 RSI_PERIOD = 14
 STOCH_K, STOCH_D = 14, 3
-MACD_FAST, MACD_SLOW, MACD_SIG = 12, 26, 9
-BB_PERIOD, BB_STD = 20, 2
 
-NSE_STOCKS = {
+# ── NIFTY 50 STOCKS (Top 50 by Market Cap) ────────────────────────
+NIFTY_50 = {
     "RELIANCE": "RELIANCE.NS",
     "TCS": "TCS.NS",
-    "INFY": "INFY.NS",
     "HDFCBANK": "HDFCBANK.NS",
+    "INFY": "INFY.NS",
     "ICICIBANK": "ICICIBANK.NS",
-    "WIPRO": "WIPRO.NS",
-    "AXISBANK": "AXISBANK.NS",
-    "BAJFINANCE": "BAJFINANCE.NS",
-    "MARUTI": "MARUTI.NS",
-    "SUNPHARMA": "SUNPHARMA.NS",
-    "TATAMOTORS": "TATAMOTORS.NS",
-    "LTIM": "LTIM.NS",
-    "HCLTECH": "HCLTECH.NS",
-    "KOTAKBANK": "KOTAKBANK.NS",
+    "HINDUNILVR": "HINDUNILVR.NS",
+    "ITC": "ITC.NS",
     "SBIN": "SBIN.NS",
+    "BHARTIARTL": "BHARTIARTL.NS",
+    "KOTAKBANK": "KOTAKBANK.NS",
+    "LT": "LT.NS",
+    "AXISBANK": "AXISBANK.NS",
+    "WIPRO": "WIPRO.NS",
+    "TITAN": "TITAN.NS",
+    "HCLTECH": "HCLTECH.NS",
+    "ASIANPAINT": "ASIANPAINT.NS",
+    "ADANIPORTS": "ADANIPORTS.NS",
+    "SUNPHARMA": "SUNPHARMA.NS",
+    "BAJFINANCE": "BAJFINANCE.NS",
+    "NTPC": "NTPC.NS",
+    "POWERGRID": "POWERGRID.NS",
+    "M&M": "M&M.NS",
+    "MARUTI": "MARUTI.NS",
+    "TATAMOTORS": "TATAMOTORS.NS",
+    "ULTRACEMCO": "ULTRACEMCO.NS",
+    "ADANIENT": "ADANIENT.NS",
+    "HDFCLIFE": "HDFCLIFE.NS",
+    "SBILIFE": "SBILIFE.NS",
+    "TATASTEEL": "TATASTEEL.NS",
+    "JSWSTEEL": "JSWSTEEL.NS",
+    "TECHM": "TECHM.NS",
+    "INDUSINDBK": "INDUSINDBK.NS",
+    "BAJAJFINSV": "BAJAJFINSV.NS",
+    "NESTLEIND": "NESTLEIND.NS",
+    "DIVISLAB": "DIVISLAB.NS",
+    "ONGC": "ONGC.NS",
+    "COALINDIA": "COALINDIA.NS",
+    "HINDALCO": "HINDALCO.NS",
+    "GRASIM": "GRASIM.NS",
+    "DRREDDY": "DRREDDY.NS",
+    "BRITANNIA": "BRITANNIA.NS",
+    "EICHERMOT": "EICHERMOT.NS",
+    "APOLLOHOSP": "APOLLOHOSP.NS",
+    "HEROMOTOCO": "HEROMOTOCO.NS",
+    "SHREECEM": "SHREECEM.NS",
+    "CIPLA": "CIPLA.NS",
+    "TATACONSUM": "TATACONSUM.NS",
+    "UPL": "UPL.NS",
+    "BAJAJ-AUTO": "BAJAJ-AUTO.NS",
+    "BPCL": "BPCL.NS",
 }
 
 # ── PAGE CONFIG ────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="NSE Signals",
+    page_title="NIFTY 50 Top 10",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="collapsed",
@@ -57,14 +93,10 @@ st.set_page_config(
 # ── RESPONSIVE CSS ─────────────────────────────────────────────────
 st.markdown("""
 <style>
-/* ── Base Reset ── */
 * { box-sizing: border-box; }
-
-/* ── App Background ── */
 .stApp { background: #0f1117; color: #e8eaf0; }
 .block-container { padding: 1rem 1rem 2rem !important; max-width: 1200px !important; }
 
-/* ── Header ── */
 .app-header {
     text-align: center;
     padding: 0.75rem 0 0.5rem;
@@ -76,7 +108,6 @@ st.markdown("""
     font-weight: 700;
     color: #ffffff;
     margin: 0;
-    letter-spacing: -0.5px;
 }
 .app-header .subtitle {
     font-size: 0.75rem;
@@ -84,7 +115,6 @@ st.markdown("""
     margin-top: 2px;
 }
 
-/* ── Signal Rules Bar ── */
 .rules-bar {
     display: flex;
     flex-wrap: wrap;
@@ -104,7 +134,6 @@ st.markdown("""
 .rule-hold { background: #2b2200; color: #fbbf24; border: 1px solid #5c4a00; }
 .rule-ha   { background: #1a1f2e; color: #93c5fd; border: 1px solid #2a3a5c; }
 
-/* ── Stock Card Grid ── */
 .card-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -112,7 +141,6 @@ st.markdown("""
     margin-top: 0.5rem;
 }
 
-/* ── Individual Stock Card ── */
 .stock-card {
     background: #1a1d27;
     border: 1px solid #2a2d3a;
@@ -122,7 +150,6 @@ st.markdown("""
 }
 .stock-card:hover { border-color: #3a3f54; }
 
-/* Card Header */
 .card-header {
     display: flex;
     justify-content: space-between;
@@ -133,7 +160,6 @@ st.markdown("""
     font-size: 0.95rem;
     font-weight: 700;
     color: #fff;
-    letter-spacing: 0.3px;
 }
 .ltp-block { text-align: right; }
 .ltp-price {
@@ -148,7 +174,6 @@ st.markdown("""
 .pos { color: #4ade80; }
 .neg { color: #f87171; }
 
-/* Signal Row */
 .sig-row {
     display: flex;
     gap: 0.4rem;
@@ -175,7 +200,6 @@ st.markdown("""
 .sig-hold { background: #2b2200; color: #fbbf24; border: 1px solid #5c4a00; }
 .sig-wait { background: #1a1f2e; color: #6b7280; border: 1px solid #2a3a5c; }
 
-/* RSI / Stoch mini row */
 .metrics-row {
     display: flex;
     gap: 0.4rem;
@@ -199,7 +223,6 @@ st.markdown("""
     color: #c8cfe0;
 }
 
-/* Strength bar */
 .strength-wrap {
     margin-top: 0.55rem;
 }
@@ -225,7 +248,6 @@ st.markdown("""
 .s-mid  { background: linear-gradient(90deg, #d97706, #fbbf24); }
 .s-low  { background: linear-gradient(90deg, #b91c1c, #f87171); }
 
-/* ── Summary Table ── */
 .summary-table {
     width: 100%;
     border-collapse: collapse;
@@ -240,7 +262,6 @@ st.markdown("""
     text-align: left;
     border-bottom: 1px solid #2a2d3a;
     font-size: 0.7rem;
-    letter-spacing: 0.5px;
     text-transform: uppercase;
 }
 .summary-table td {
@@ -259,7 +280,6 @@ st.markdown("""
     font-weight: 700;
 }
 
-/* ── Tabs Override ── */
 .stTabs [data-baseweb="tab-list"] {
     gap: 4px;
     background: #1a1d27;
@@ -278,7 +298,6 @@ st.markdown("""
     color: #fff !important;
 }
 
-/* ── Refresh button ── */
 .stButton > button {
     background: #1e3a5f;
     color: #93c5fd;
@@ -288,17 +307,12 @@ st.markdown("""
     font-weight: 600;
     padding: 6px 20px;
     width: 100%;
-    transition: all 0.2s;
 }
 .stButton > button:hover {
     background: #2a4a7f;
     color: #bfdbfe;
 }
 
-/* ── Spinner ── */
-.stSpinner { color: #4ade80 !important; }
-
-/* ── Mobile ── */
 @media (max-width: 600px) {
     .block-container { padding: 0.5rem 0.5rem 2rem !important; }
     .card-grid { grid-template-columns: 1fr; gap: 0.5rem; }
@@ -365,7 +379,7 @@ def signal_strength(rsi, stk, macd_h, vol, avg_vol):
 def fetch_live_data(ticker, interval):
     try:
         df = yf.download(ticker, period=f"{LOOKBACK_DAYS}d",
-                         interval=interval, progress=False, auto_adjust=True, timeout=20)
+                         interval=interval, progress=False, auto_adjust=True, timeout=15)
         if df is not None and len(df) > RSI_PERIOD + 5:
             if isinstance(df.columns, pd.MultiIndex):
                 df.columns = df.columns.get_level_values(0)
@@ -382,14 +396,7 @@ def analyse_stock(name, ticker, interval):
     ha["RSI"] = calc_rsi(ha["HA_Close"], RSI_PERIOD)
     ha["SK"], ha["SD"] = calc_stoch(ha["HA_High"], ha["HA_Low"], ha["HA_Close"], STOCH_K, STOCH_D)
     ha["MACD"], ha["MSIG"], ha["MHIST"] = calc_macd(ha["HA_Close"])
-    ha["BB_MID"], ha["BB_UP"], ha["BB_LO"] = (
-        ha["HA_Close"].rolling(BB_PERIOD).mean(),
-        ha["HA_Close"].rolling(BB_PERIOD).mean() + BB_STD * ha["HA_Close"].rolling(BB_PERIOD).std(),
-        ha["HA_Close"].rolling(BB_PERIOD).mean() - BB_STD * ha["HA_Close"].rolling(BB_PERIOD).std(),
-    )
     ha["VOLAVG"] = ha["Volume"].rolling(20).mean()
-    ha["SUPP"] = ha["HA_Low"].rolling(20).min()
-    ha["RES"]  = ha["HA_High"].rolling(20).max()
 
     lat  = ha.iloc[-1]
     prev = ha.iloc[-2] if len(ha) > 1 else lat
@@ -418,20 +425,40 @@ def analyse_stock(name, ticker, interval):
 @st.cache_data(ttl=300)
 def get_all_data():
     results_by_tf = {}
+    
+    # Progress
+    progress_text = st.empty()
+    progress_bar = st.progress(0)
+    
+    total = len(NIFTY_50) * len(TIMEFRAMES)
+    current = 0
+    
     for tf in TIMEFRAMES:
         tf_res = []
-        for name, ticker in NSE_STOCKS.items():
+        for name, ticker in NIFTY_50.items():
+            current += 1
+            progress_text.text(f"📈 Analysing {name} ({tf})...")
+            progress_bar.progress(current / total)
+            
             try:
                 r = analyse_stock(name, ticker, tf)
-                if r: tf_res.append(r)
-                time.sleep(0.15)
+                if r: 
+                    tf_res.append(r)
+                time.sleep(0.1)
             except:
                 continue
         results_by_tf[tf] = tf_res
-
-    top_10 = list(NSE_STOCKS.keys())[:10]
+    
+    progress_text.text("✅ Analysis complete!")
+    progress_bar.empty()
+    
+    # Top 10 based on 1H Change
+    top_10 = list(NIFTY_50.keys())[:10]
     if results_by_tf.get("1h"):
-        top_10 = [r["Stock"] for r in sorted(results_by_tf["1h"], key=lambda x: x["Change"], reverse=True)[:10]]
+        valid = [r for r in results_by_tf["1h"] if r is not None]
+        if valid:
+            top_10 = [r["Stock"] for r in sorted(valid, key=lambda x: x["Change"], reverse=True)[:10]]
+    
     return results_by_tf, top_10
 
 # ── HTML BUILDERS ──────────────────────────────────────────────────
@@ -447,8 +474,7 @@ def strength_bar_html(val):
         <div class="strength-bar"><div class="strength-fill {cls}" style="width:{val}%"></div></div>
     </div>"""
 
-def stock_card_html(name, r1h, r4h, r1d):
-    # Use 1H as primary for LTP / Change
+def stock_card_html(name, r1h, r4h, r1d, rank):
     ltp = r1h["LTP"] if r1h else (r1d["LTP"] if r1d else 0)
     chg = r1h["Change"] if r1h else (r1d["Change"] if r1d else 0)
     chg_cls = "pos" if chg >= 0 else "neg"
@@ -481,11 +507,13 @@ def stock_card_html(name, r1h, r4h, r1d):
             {metric_chip("RSI 1D", r1d['RSI'] if r1d else '–')}
             {metric_chip("SK 1D", r1d['SK'] if r1d else '–')}
         </div>"""
+    
+    medal = "🥇" if rank == 1 else "🥈" if rank == 2 else "🥉" if rank == 3 else f"#{rank}"
 
     return f"""
     <div class="stock-card">
         <div class="card-header">
-            <span class="stock-name">{name}</span>
+            <span class="stock-name">{medal} {name}</span>
             <div class="ltp-block">
                 <div class="ltp-price">₹{ltp:,.2f}</div>
                 <div class="ltp-change {chg_cls}">{chg_sym} {abs(chg):.2f}%</div>
@@ -498,13 +526,15 @@ def stock_card_html(name, r1h, r4h, r1d):
 
 def summary_table_html(top_10, all_res):
     rows = ""
-    for stock in top_10:
+    for rank, stock in enumerate(top_10, 1):
         r1h = all_res.get((stock, "1h"))
         r4h = all_res.get((stock, "4h"))
         r1d = all_res.get((stock, "1d"))
         ltp = r1h["LTP"] if r1h else "–"
         chg = r1h["Change"] if r1h else 0
         chg_cls = "pos" if chg >= 0 else "neg"
+        
+        medal = "🥇" if rank == 1 else "🥈" if rank == 2 else "🥉" if rank == 3 else f"{rank}"
 
         def td_sig(r):
             if not r: return '<span class="td-sig sig-wait">–</span>'
@@ -512,6 +542,7 @@ def summary_table_html(top_10, all_res):
             return f'<span class="td-sig {sc}">{SIG_ICON.get(r["Signal"], "–")}</span>'
 
         rows += f"""<tr>
+            <td style="color:#6b7280;font-size:0.7rem">{medal}</td>
             <td><strong style="color:#fff">{stock}</strong></td>
             <td class="{chg_cls}">₹{ltp:,.0f}</td>
             <td class="{chg_cls}">{"▲" if chg>=0 else "▼"}{abs(chg):.1f}%</td>
@@ -524,21 +555,19 @@ def summary_table_html(top_10, all_res):
     return f"""
     <table class="summary-table">
         <thead><tr>
-            <th>Stock</th><th>LTP</th><th>Chg</th>
+            <th>#</th><th>Stock</th><th>LTP</th><th>Chg</th>
             <th>1H</th><th>4H</th><th>1D</th><th>Updated</th>
         </tr></thead>
         <tbody>{rows}</tbody>
     </table>"""
 
 # ── MAIN UI ────────────────────────────────────────────────────────
-# Header
 st.markdown(f"""
 <div class="app-header">
-    <h1>📊 NSE Top 10 — Multi-Timeframe Signals</h1>
-    <div class="subtitle">🕐 {datetime.now().strftime('%d %b %Y, %H:%M')} IST &nbsp;|&nbsp; Heikin Ashi &nbsp;|&nbsp; Live via Yahoo Finance</div>
+    <h1>📊 NIFTY 50 — Top 10 Performers</h1>
+    <div class="subtitle">🕐 {datetime.now().strftime('%d %b %Y, %H:%M')} IST &nbsp;|&nbsp; Heikin Ashi &nbsp;|&nbsp; Live via Yahoo Finance &nbsp;|&nbsp; {len(NIFTY_50)} NIFTY 50 stocks tracked</div>
 </div>""", unsafe_allow_html=True)
 
-# Rules bar
 st.markdown(f"""
 <div class="rules-bar">
     <span class="rule-pill rule-buy">▲ BUY: RSI &gt; {BUY_RSI} &amp; Stoch &gt; {BUY_STOCH}</span>
@@ -547,15 +576,13 @@ st.markdown(f"""
     <span class="rule-pill rule-ha">📊 Heikin Ashi Candles</span>
 </div>""", unsafe_allow_html=True)
 
-# Refresh
 col_r1, col_r2, col_r3 = st.columns([3, 1, 3])
 with col_r2:
     if st.button("🔄 Refresh"):
         st.cache_data.clear()
         st.rerun()
 
-# Fetch
-with st.spinner("📈 Fetching live data..."):
+with st.spinner("📈 Fetching live data from NIFTY 50..."):
     results_by_tf, top_10_names = get_all_data()
 
 all_res = {}
@@ -563,7 +590,6 @@ for tf, res_list in results_by_tf.items():
     for r in res_list:
         if r: all_res[(r["Stock"], tf)] = r
 
-# ── SHARED CARD + TABLE CSS (embedded inside components) ──────────
 COMPONENT_CSS = """
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
@@ -630,7 +656,6 @@ body { background: transparent; color: #e8eaf0; }
 .s-mid  { background: linear-gradient(90deg, #d97706, #fbbf24); }
 .s-low  { background: linear-gradient(90deg, #b91c1c, #f87171); }
 
-/* Summary Table */
 .summary-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
 .summary-table th {
     background: #1a1d27; color: #6b7280; font-weight: 600;
@@ -649,18 +674,16 @@ body { background: transparent; color: #e8eaf0; }
 </style>
 """
 
-# Tabs: Cards View / Summary Table
 tab1, tab2 = st.tabs(["🃏 Signal Cards", "📋 Summary Table"])
 
 with tab1:
     cards_html = '<div class="card-grid">'
-    for stock in top_10_names:
+    for idx, stock in enumerate(top_10_names, 1):
         r1h = all_res.get((stock, "1h"))
         r4h = all_res.get((stock, "4h"))
         r1d = all_res.get((stock, "1d"))
-        cards_html += stock_card_html(stock, r1h, r4h, r1d)
+        cards_html += stock_card_html(stock, r1h, r4h, r1d, idx)
     cards_html += '</div>'
-    # Calculate dynamic height: ~230px per card row (3 cards per row desktop)
     n_rows = max(1, -(-len(top_10_names) // 3))
     card_height = n_rows * 240 + 40
     components.html(COMPONENT_CSS + cards_html, height=card_height, scrolling=False)
@@ -669,8 +692,12 @@ with tab2:
     tbl_html = summary_table_html(top_10_names, all_res)
     components.html(COMPONENT_CSS + tbl_html, height=len(top_10_names) * 42 + 80, scrolling=False)
 
-# Footer
+# ── FOOTER ─────────────────────────────────────────────────────────
 st.markdown("""
 <div style="text-align:center; margin-top:2rem; font-size:0.65rem; color:#4b5563; border-top:1px solid #2a2d3a; padding-top:0.75rem;">
-    ⚠️ Educational purposes only. Not financial advice. &nbsp;|&nbsp; Data: Yahoo Finance &nbsp;|&nbsp; 15 NSE stocks tracked
-</div>""", unsafe_allow_html=True)
+    Created with ❤️ by <strong style="color:#93c5fd;">Supriya Jaiswal</strong> &nbsp;|&nbsp; 
+    📧 <a href="mailto:supriyajswl43@gmail.com" style="color:#6b7280;text-decoration:none;">supriyajswl43@gmail.com</a> &nbsp;|&nbsp;
+    ⚠️ Educational purposes only. Not financial advice. &nbsp;|&nbsp; 
+    📊 NIFTY 50 stocks tracked
+</div>
+""", unsafe_allow_html=True)
