@@ -9,6 +9,7 @@ NSE Stock Analyzer - Responsive Web Version
 """
 
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import yfinance as yf
 import numpy as np
@@ -562,6 +563,92 @@ for tf, res_list in results_by_tf.items():
     for r in res_list:
         if r: all_res[(r["Stock"], tf)] = r
 
+# ── SHARED CARD + TABLE CSS (embedded inside components) ──────────
+COMPONENT_CSS = """
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+body { background: transparent; color: #e8eaf0; }
+
+.card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 0.7rem;
+    padding: 4px 2px 8px;
+}
+.stock-card {
+    background: #1a1d27;
+    border: 1px solid #2a2d3a;
+    border-radius: 12px;
+    padding: 0.85rem 1rem;
+}
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.6rem;
+}
+.stock-name { font-size: 0.92rem; font-weight: 700; color: #fff; }
+.ltp-block { text-align: right; }
+.ltp-price { font-size: 0.88rem; font-weight: 600; color: #e8eaf0; }
+.ltp-change { font-size: 0.7rem; font-weight: 600; margin-top: 1px; }
+.pos { color: #4ade80; }
+.neg { color: #f87171; }
+
+.sig-row { display: flex; gap: 0.4rem; margin-bottom: 0.6rem; }
+.tf-badge {
+    flex: 1;
+    text-align: center;
+    padding: 5px 3px;
+    border-radius: 8px;
+    font-size: 0.67rem;
+    font-weight: 700;
+    line-height: 1.3;
+}
+.tf-label { font-size: 0.58rem; opacity: 0.65; display: block; margin-bottom: 2px; }
+.sig-buy  { background: #0d2b1a; color: #4ade80; border: 1px solid #1a5c38; }
+.sig-sell { background: #2b0d0d; color: #f87171; border: 1px solid #5c1a1a; }
+.sig-hold { background: #2b2200; color: #fbbf24; border: 1px solid #5c4a00; }
+.sig-wait { background: #1a1f2e; color: #6b7280; border: 1px solid #2a3a5c; }
+
+.metrics-row { display: flex; gap: 0.4rem; margin-bottom: 0.55rem; }
+.metric-chip {
+    flex: 1;
+    background: #0f1117;
+    border: 1px solid #2a2d3a;
+    border-radius: 6px;
+    padding: 4px 5px;
+    text-align: center;
+}
+.m-label { font-size: 0.56rem; color: #6b7280; display: block; }
+.m-val   { font-size: 0.78rem; font-weight: 600; color: #c8cfe0; }
+
+.strength-wrap { margin-top: 0.1rem; }
+.strength-label { display: flex; justify-content: space-between; font-size: 0.58rem; color: #6b7280; margin-bottom: 3px; }
+.strength-bar { height: 4px; border-radius: 2px; background: #2a2d3a; overflow: hidden; }
+.strength-fill { height: 100%; border-radius: 2px; }
+.s-high { background: linear-gradient(90deg, #16a34a, #4ade80); }
+.s-mid  { background: linear-gradient(90deg, #d97706, #fbbf24); }
+.s-low  { background: linear-gradient(90deg, #b91c1c, #f87171); }
+
+/* Summary Table */
+.summary-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+.summary-table th {
+    background: #1a1d27; color: #6b7280; font-weight: 600;
+    padding: 8px 10px; text-align: left; border-bottom: 1px solid #2a2d3a;
+    font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.4px;
+}
+.summary-table td { padding: 7px 10px; border-bottom: 1px solid #1a1d27; color: #c8cfe0; vertical-align: middle; }
+.summary-table tr:hover td { background: #1a1d27; }
+.td-sig { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 0.67rem; font-weight: 700; }
+
+@media (max-width: 500px) {
+    .card-grid { grid-template-columns: 1fr; }
+    .summary-table { font-size: 0.68rem; }
+    .summary-table th, .summary-table td { padding: 5px 6px; }
+}
+</style>
+"""
+
 # Tabs: Cards View / Summary Table
 tab1, tab2 = st.tabs(["🃏 Signal Cards", "📋 Summary Table"])
 
@@ -573,10 +660,14 @@ with tab1:
         r1d = all_res.get((stock, "1d"))
         cards_html += stock_card_html(stock, r1h, r4h, r1d)
     cards_html += '</div>'
-    st.markdown(cards_html, unsafe_allow_html=True)
+    # Calculate dynamic height: ~230px per card row (3 cards per row desktop)
+    n_rows = max(1, -(-len(top_10_names) // 3))
+    card_height = n_rows * 240 + 40
+    components.html(COMPONENT_CSS + cards_html, height=card_height, scrolling=False)
 
 with tab2:
-    st.markdown(summary_table_html(top_10_names, all_res), unsafe_allow_html=True)
+    tbl_html = summary_table_html(top_10_names, all_res)
+    components.html(COMPONENT_CSS + tbl_html, height=len(top_10_names) * 42 + 80, scrolling=False)
 
 # Footer
 st.markdown("""
