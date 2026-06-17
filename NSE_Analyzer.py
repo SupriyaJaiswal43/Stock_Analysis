@@ -22,13 +22,13 @@ warnings.filterwarnings("ignore")
 
 # ── CONFIG ─────────────────────────────────────────────────────────
 TIMEFRAMES = ["1h", "4h", "1d"]
-LOOKBACK_DAYS = 30  # Reduced for speed
+LOOKBACK_DAYS = 30
 BUY_RSI, BUY_STOCH = 40, 20
 SELL_RSI, SELL_STOCH = 70, 80
 RSI_PERIOD = 14
 STOCH_K, STOCH_D = 14, 3
 
-# ── NIFTY 50 STOCKS (Top 50 by Market Cap) ────────────────────────
+# ── NIFTY 50 STOCKS ────────────────────────────────────────────────
 NIFTY_50 = {
     "RELIANCE": "RELIANCE.NS",
     "TCS": "TCS.NS",
@@ -397,6 +397,8 @@ def analyse_stock(name, ticker, interval):
     ha["SK"], ha["SD"] = calc_stoch(ha["HA_High"], ha["HA_Low"], ha["HA_Close"], STOCH_K, STOCH_D)
     ha["MACD"], ha["MSIG"], ha["MHIST"] = calc_macd(ha["HA_Close"])
     ha["VOLAVG"] = ha["Volume"].rolling(20).mean()
+    ha["SUPP"] = ha["HA_Low"].rolling(20).min()
+    ha["RES"]  = ha["HA_High"].rolling(20).max()
 
     lat  = ha.iloc[-1]
     prev = ha.iloc[-2] if len(ha) > 1 else lat
@@ -426,7 +428,6 @@ def analyse_stock(name, ticker, interval):
 def get_all_data():
     results_by_tf = {}
     
-    # Progress
     progress_text = st.empty()
     progress_bar = st.progress(0)
     
@@ -475,17 +476,45 @@ def strength_bar_html(val):
     </div>"""
 
 def stock_card_html(name, r1h, r4h, r1d, rank):
-    ltp = r1h["LTP"] if r1h else (r1d["LTP"] if r1d else 0)
-    chg = r1h["Change"] if r1h else (r1d["Change"] if r1d else 0)
+    # Safe value extraction with fallbacks
+    if r1h:
+        ltp = r1h["LTP"]
+        chg = r1h["Change"]
+        rsi_1h = r1h["RSI"]
+        sk_1h = r1h["SK"]
+        strength_1h = r1h["Strength"]
+    elif r1d:
+        ltp = r1d["LTP"]
+        chg = r1d["Change"]
+        rsi_1h = "–"
+        sk_1h = "–"
+        strength_1h = 0
+    else:
+        ltp = 0
+        chg = 0
+        rsi_1h = "–"
+        sk_1h = "–"
+        strength_1h = 0
+    
+    # Average strength - handle empty list case
+    strengths = []
+    if r1h and "Strength" in r1h:
+        strengths.append(r1h["Strength"])
+    if r4h and "Strength" in r4h:
+        strengths.append(r4h["Strength"])
+    if r1d and "Strength" in r1d:
+        strengths.append(r1d["Strength"])
+    
+    avg_str = int(np.mean(strengths)) if strengths else 0
+    
     chg_cls = "pos" if chg >= 0 else "neg"
     chg_sym = "▲" if chg >= 0 else "▼"
-    avg_str = int(np.mean([r["Strength"] for r in [r1h, r4h, r1d] if r]))
 
     def tf_badge(r, label):
         if not r:
             return f'<div class="tf-badge sig-wait"><span class="tf-label">{label}</span>–</div>'
-        sc = SIG_CLASS.get(r["Signal"], "sig-wait")
-        ic = SIG_ICON.get(r["Signal"], "WAIT")
+        sc = SIG_CLASS.get(r.get("Signal", "WAIT"), "sig-wait")
+        ic = SIG_ICON.get(r.get("Signal", "WAIT"), "WAIT")
         return f'<div class="tf-badge {sc}"><span class="tf-label">{label}</span>{ic}</div>'
 
     sig_row = f"""
@@ -498,15 +527,13 @@ def stock_card_html(name, r1h, r4h, r1d, rank):
     def metric_chip(label, val):
         return f'<div class="metric-chip"><span class="m-label">{label}</span><span class="m-val">{val}</span></div>'
 
-    metrics = ""
-    if r1h:
-        metrics = f"""
-        <div class="metrics-row">
-            {metric_chip("RSI 1H", r1h['RSI'])}
-            {metric_chip("SK 1H", r1h['SK'])}
-            {metric_chip("RSI 1D", r1d['RSI'] if r1d else '–')}
-            {metric_chip("SK 1D", r1d['SK'] if r1d else '–')}
-        </div>"""
+    metrics = f"""
+    <div class="metrics-row">
+        {metric_chip("RSI 1H", rsi_1h)}
+        {metric_chip("SK 1H", sk_1h)}
+        {metric_chip("RSI 1D", r1d["RSI"] if r1d else '–')}
+        {metric_chip("SK 1D", r1d["SK"] if r1d else '–')}
+    </div>"""
     
     medal = "🥇" if rank == 1 else "🥈" if rank == 2 else "🥉" if rank == 3 else f"#{rank}"
 
@@ -530,16 +557,24 @@ def summary_table_html(top_10, all_res):
         r1h = all_res.get((stock, "1h"))
         r4h = all_res.get((stock, "4h"))
         r1d = all_res.get((stock, "1d"))
-        ltp = r1h["LTP"] if r1h else "–"
-        chg = r1h["Change"] if r1h else 0
-        chg_cls = "pos" if chg >= 0 else "neg"
         
+        if r1h:
+            ltp = r1h["LTP"]
+            chg = r1h["Change"]
+            as_of = r1h["As_of"]
+        else:
+            ltp = "–"
+            chg = 0
+            as_of = "–"
+            
+        chg_cls = "pos" if chg >= 0 else "neg"
         medal = "🥇" if rank == 1 else "🥈" if rank == 2 else "🥉" if rank == 3 else f"{rank}"
 
         def td_sig(r):
-            if not r: return '<span class="td-sig sig-wait">–</span>'
-            sc = TD_CLASS.get(r["Signal"], "sig-wait")
-            return f'<span class="td-sig {sc}">{SIG_ICON.get(r["Signal"], "–")}</span>'
+            if not r:
+                return '<span class="td-sig sig-wait">–</span>'
+            sc = TD_CLASS.get(r.get("Signal", "WAIT"), "sig-wait")
+            return f'<span class="td-sig {sc}">{SIG_ICON.get(r.get("Signal", "WAIT"), "–")}</span>'
 
         rows += f"""<tr>
             <td style="color:#6b7280;font-size:0.7rem">{medal}</td>
@@ -549,7 +584,7 @@ def summary_table_html(top_10, all_res):
             <td>{td_sig(r1h)}</td>
             <td>{td_sig(r4h)}</td>
             <td>{td_sig(r1d)}</td>
-            <td style="color:#6b7280;font-size:0.65rem">{r1h['As_of'] if r1h else '–'}</td>
+            <td style="color:#6b7280;font-size:0.65rem">{as_of}</td>
         </tr>"""
 
     return f"""
@@ -588,7 +623,8 @@ with st.spinner("📈 Fetching live data from NIFTY 50..."):
 all_res = {}
 for tf, res_list in results_by_tf.items():
     for r in res_list:
-        if r: all_res[(r["Stock"], tf)] = r
+        if r: 
+            all_res[(r["Stock"], tf)] = r
 
 COMPONENT_CSS = """
 <style>
@@ -674,23 +710,27 @@ body { background: transparent; color: #e8eaf0; }
 </style>
 """
 
-tab1, tab2 = st.tabs(["🃏 Signal Cards", "📋 Summary Table"])
+if top_10_names and len(top_10_names) > 0:
+    tab1, tab2 = st.tabs(["🃏 Signal Cards", "📋 Summary Table"])
 
-with tab1:
-    cards_html = '<div class="card-grid">'
-    for idx, stock in enumerate(top_10_names, 1):
-        r1h = all_res.get((stock, "1h"))
-        r4h = all_res.get((stock, "4h"))
-        r1d = all_res.get((stock, "1d"))
-        cards_html += stock_card_html(stock, r1h, r4h, r1d, idx)
-    cards_html += '</div>'
-    n_rows = max(1, -(-len(top_10_names) // 3))
-    card_height = n_rows * 240 + 40
-    components.html(COMPONENT_CSS + cards_html, height=card_height, scrolling=False)
+    with tab1:
+        cards_html = '<div class="card-grid">'
+        for idx, stock in enumerate(top_10_names, 1):
+            r1h = all_res.get((stock, "1h"))
+            r4h = all_res.get((stock, "4h"))
+            r1d = all_res.get((stock, "1d"))
+            cards_html += stock_card_html(stock, r1h, r4h, r1d, idx)
+        cards_html += '</div>'
+        n_rows = max(1, -(-len(top_10_names) // 3))
+        card_height = n_rows * 240 + 40
+        components.html(COMPONENT_CSS + cards_html, height=card_height, scrolling=False)
 
-with tab2:
-    tbl_html = summary_table_html(top_10_names, all_res)
-    components.html(COMPONENT_CSS + tbl_html, height=len(top_10_names) * 42 + 80, scrolling=False)
+    with tab2:
+        tbl_html = summary_table_html(top_10_names, all_res)
+        components.html(COMPONENT_CSS + tbl_html, height=len(top_10_names) * 42 + 80, scrolling=False)
+else:
+    st.error("❌ No data available. Please try again later.")
+    st.info("💡 Tips:\n- Check internet connection\n- Yahoo Finance might be temporarily unavailable\n- Try refreshing after 1-2 minutes")
 
 # ── FOOTER ─────────────────────────────────────────────────────────
 st.markdown("""
