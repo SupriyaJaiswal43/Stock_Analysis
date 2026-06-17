@@ -1,11 +1,12 @@
 """
-NSE Stock Analyzer - NIFTY 50 Top 10
-=====================================
+NSE Stock Analyzer - NIFTY 50 Top 10 (Light Theme)
+===================================================
 • Live data via yfinance ONLY
 • 3 Timeframes: 1H, 4H, 1D
 • Heikin Ashi candles
 • Custom Signal: BUY (RSI>40 & Stoch>20) | SELL (RSI<70 & Stoch<80)
 • Top 10 from NIFTY 50 stocks
+• Light & Clean Design
 • Mobile + Laptop Responsive
 • Created by Supriya Jaiswal
 """
@@ -90,31 +91,37 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# ── RESPONSIVE CSS ─────────────────────────────────────────────────
+# ── LIGHT THEME CSS ────────────────────────────────────────────────
 st.markdown("""
 <style>
+/* ── Base ── */
 * { box-sizing: border-box; }
-.stApp { background: #0f1117; color: #e8eaf0; }
+.stApp { background: #f5f7fa; color: #1a2332; }
 .block-container { padding: 1rem 1rem 2rem !important; max-width: 1200px !important; }
 
+/* ── Header ── */
 .app-header {
     text-align: center;
     padding: 0.75rem 0 0.5rem;
-    border-bottom: 1px solid #2a2d3a;
+    border-bottom: 2px solid #e8ecf1;
     margin-bottom: 1rem;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
 }
 .app-header h1 {
     font-size: clamp(1.2rem, 4vw, 1.8rem);
     font-weight: 700;
-    color: #ffffff;
+    color: #1a2332;
     margin: 0;
 }
 .app-header .subtitle {
     font-size: 0.75rem;
-    color: #6b7280;
+    color: #6b7a8f;
     margin-top: 2px;
 }
 
+/* ── Rules Bar ── */
 .rules-bar {
     display: flex;
     flex-wrap: wrap;
@@ -123,17 +130,18 @@ st.markdown("""
     justify-content: center;
 }
 .rule-pill {
-    padding: 4px 12px;
+    padding: 4px 14px;
     border-radius: 999px;
     font-size: 0.72rem;
     font-weight: 600;
     letter-spacing: 0.3px;
 }
-.rule-buy  { background: #0d2b1a; color: #4ade80; border: 1px solid #1a5c38; }
-.rule-sell { background: #2b0d0d; color: #f87171; border: 1px solid #5c1a1a; }
-.rule-hold { background: #2b2200; color: #fbbf24; border: 1px solid #5c4a00; }
-.rule-ha   { background: #1a1f2e; color: #93c5fd; border: 1px solid #2a3a5c; }
+.rule-buy  { background: #e6f7e6; color: #1a7a3a; border: 1px solid #b8e0b8; }
+.rule-sell { background: #fde8e8; color: #b91c1c; border: 1px solid #f5c6c6; }
+.rule-hold { background: #fef7e0; color: #9c7c1a; border: 1px solid #f5e6b8; }
+.rule-ha   { background: #e8f0fe; color: #1a4a7a; border: 1px solid #c6d8f5; }
 
+/* ── Card Grid ── */
 .card-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -141,14 +149,20 @@ st.markdown("""
     margin-top: 0.5rem;
 }
 
+/* ── Stock Card ── */
 .stock-card {
-    background: #1a1d27;
-    border: 1px solid #2a2d3a;
+    background: white;
+    border: 1px solid #e8ecf1;
     border-radius: 12px;
     padding: 0.85rem 1rem;
-    transition: border-color 0.2s;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
 }
-.stock-card:hover { border-color: #3a3f54; }
+.stock-card:hover {
+    border-color: #c8d0db;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    transform: translateY(-1px);
+}
 
 .card-header {
     display: flex;
@@ -159,21 +173,22 @@ st.markdown("""
 .stock-name {
     font-size: 0.95rem;
     font-weight: 700;
-    color: #fff;
+    color: #1a2332;
 }
 .ltp-block { text-align: right; }
 .ltp-price {
     font-size: 0.9rem;
     font-weight: 600;
-    color: #e8eaf0;
+    color: #1a2332;
 }
 .ltp-change {
     font-size: 0.72rem;
     font-weight: 600;
 }
-.pos { color: #4ade80; }
-.neg { color: #f87171; }
+.pos { color: #1a8a3a; }
+.neg { color: #c92a2a; }
 
+/* ── Signal Badges ── */
 .sig-row {
     display: flex;
     gap: 0.4rem;
@@ -195,34 +210,36 @@ st.markdown("""
     margin-bottom: 2px;
     display: block;
 }
-.sig-buy  { background: #0d2b1a; color: #4ade80; border: 1px solid #1a5c38; }
-.sig-sell { background: #2b0d0d; color: #f87171; border: 1px solid #5c1a1a; }
-.sig-hold { background: #2b2200; color: #fbbf24; border: 1px solid #5c4a00; }
-.sig-wait { background: #1a1f2e; color: #6b7280; border: 1px solid #2a3a5c; }
+.sig-buy  { background: #d4edda; color: #155724; border: 1px solid #b8e0b8; }
+.sig-sell { background: #f8d7da; color: #721c24; border: 1px solid #f5c6c6; }
+.sig-hold { background: #fff3cd; color: #856404; border: 1px solid #f5e6b8; }
+.sig-wait { background: #e9ecef; color: #6c757d; border: 1px solid #d5d8dc; }
 
+/* ── Metrics ── */
 .metrics-row {
     display: flex;
     gap: 0.4rem;
 }
 .metric-chip {
     flex: 1;
-    background: #0f1117;
-    border: 1px solid #2a2d3a;
+    background: #f8f9fa;
+    border: 1px solid #e8ecf1;
     border-radius: 6px;
     padding: 4px 6px;
     text-align: center;
 }
 .metric-chip .m-label {
     font-size: 0.58rem;
-    color: #6b7280;
+    color: #6b7a8f;
     display: block;
 }
 .metric-chip .m-val {
     font-size: 0.8rem;
     font-weight: 600;
-    color: #c8cfe0;
+    color: #1a2332;
 }
 
+/* ── Strength Bar ── */
 .strength-wrap {
     margin-top: 0.55rem;
 }
@@ -230,13 +247,13 @@ st.markdown("""
     display: flex;
     justify-content: space-between;
     font-size: 0.6rem;
-    color: #6b7280;
+    color: #6b7a8f;
     margin-bottom: 3px;
 }
 .strength-bar {
     height: 4px;
     border-radius: 2px;
-    background: #2a2d3a;
+    background: #e8ecf1;
     overflow: hidden;
 }
 .strength-fill {
@@ -244,80 +261,93 @@ st.markdown("""
     border-radius: 2px;
     transition: width 0.4s ease;
 }
-.s-high { background: linear-gradient(90deg, #16a34a, #4ade80); }
-.s-mid  { background: linear-gradient(90deg, #d97706, #fbbf24); }
-.s-low  { background: linear-gradient(90deg, #b91c1c, #f87171); }
+.s-high { background: linear-gradient(90deg, #28a745, #5dd87a); }
+.s-mid  { background: linear-gradient(90deg, #d4a017, #f5c842); }
+.s-low  { background: linear-gradient(90deg, #c92a2a, #f06060); }
 
+/* ── Summary Table ── */
 .summary-table {
     width: 100%;
     border-collapse: collapse;
     font-size: 0.78rem;
     margin-top: 0.5rem;
+    background: white;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
 }
 .summary-table th {
-    background: #1a1d27;
-    color: #6b7280;
+    background: #f0f2f5;
+    color: #4a5a6f;
     font-weight: 600;
-    padding: 8px 10px;
+    padding: 10px 12px;
     text-align: left;
-    border-bottom: 1px solid #2a2d3a;
-    font-size: 0.7rem;
+    border-bottom: 2px solid #e8ecf1;
+    font-size: 0.68rem;
     text-transform: uppercase;
+    letter-spacing: 0.4px;
 }
 .summary-table td {
-    padding: 7px 10px;
-    border-bottom: 1px solid #1a1d27;
-    color: #c8cfe0;
+    padding: 8px 12px;
+    border-bottom: 1px solid #e8ecf1;
+    color: #1a2332;
     vertical-align: middle;
 }
-.summary-table tr:hover td { background: #1a1d27; }
+.summary-table tr:hover td { background: #f8f9fa; }
+.summary-table tr:last-child td { border-bottom: none; }
 
 .td-sig {
     display: inline-block;
-    padding: 2px 8px;
+    padding: 2px 10px;
     border-radius: 6px;
-    font-size: 0.68rem;
+    font-size: 0.67rem;
     font-weight: 700;
 }
 
+/* ── Tabs ── */
 .stTabs [data-baseweb="tab-list"] {
     gap: 4px;
-    background: #1a1d27;
-    border-radius: 8px;
+    background: white;
+    border-radius: 10px;
     padding: 4px;
-    border: 1px solid #2a2d3a;
+    border: 1px solid #e8ecf1;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
 }
 .stTabs [data-baseweb="tab"] {
     border-radius: 6px;
-    color: #6b7280;
+    color: #6b7a8f;
     font-size: 0.8rem;
     padding: 6px 16px;
 }
 .stTabs [aria-selected="true"] {
-    background: #2a2d3a !important;
-    color: #fff !important;
+    background: #1a2332 !important;
+    color: white !important;
 }
 
+/* ── Refresh Button ── */
 .stButton > button {
-    background: #1e3a5f;
-    color: #93c5fd;
-    border: 1px solid #2a4a7f;
+    background: #1a2332;
+    color: white;
+    border: none;
     border-radius: 8px;
     font-size: 0.8rem;
     font-weight: 600;
     padding: 6px 20px;
     width: 100%;
+    transition: all 0.2s;
 }
 .stButton > button:hover {
-    background: #2a4a7f;
-    color: #bfdbfe;
+    background: #2a3a5a;
+    color: white;
+    transform: scale(1.02);
 }
 
+/* ── Mobile ── */
 @media (max-width: 600px) {
     .block-container { padding: 0.5rem 0.5rem 2rem !important; }
     .card-grid { grid-template-columns: 1fr; gap: 0.5rem; }
-    .summary-table { font-size: 0.7rem; }
-    .summary-table th, .summary-table td { padding: 6px 6px; }
+    .summary-table { font-size: 0.68rem; }
+    .summary-table th, .summary-table td { padding: 5px 6px; }
 }
 </style>
 """, unsafe_allow_html=True)
@@ -482,19 +512,16 @@ def stock_card_html(name, r1h, r4h, r1d, rank):
         chg = r1h["Change"]
         rsi_1h = r1h["RSI"]
         sk_1h = r1h["SK"]
-        strength_1h = r1h["Strength"]
     elif r1d:
         ltp = r1d["LTP"]
         chg = r1d["Change"]
         rsi_1h = "–"
         sk_1h = "–"
-        strength_1h = 0
     else:
         ltp = 0
         chg = 0
         rsi_1h = "–"
         sk_1h = "–"
-        strength_1h = 0
     
     # Average strength - handle empty list case
     strengths = []
@@ -577,14 +604,14 @@ def summary_table_html(top_10, all_res):
             return f'<span class="td-sig {sc}">{SIG_ICON.get(r.get("Signal", "WAIT"), "–")}</span>'
 
         rows += f"""<tr>
-            <td style="color:#6b7280;font-size:0.7rem">{medal}</td>
-            <td><strong style="color:#fff">{stock}</strong></td>
+            <td style="color:#6b7a8f;font-size:0.7rem">{medal}</td>
+            <td><strong style="color:#1a2332">{stock}</strong></td>
             <td class="{chg_cls}">₹{ltp:,.0f}</td>
             <td class="{chg_cls}">{"▲" if chg>=0 else "▼"}{abs(chg):.1f}%</td>
             <td>{td_sig(r1h)}</td>
             <td>{td_sig(r4h)}</td>
             <td>{td_sig(r1d)}</td>
-            <td style="color:#6b7280;font-size:0.65rem">{as_of}</td>
+            <td style="color:#6b7a8f;font-size:0.65rem">{as_of}</td>
         </tr>"""
 
     return f"""
@@ -629,7 +656,7 @@ for tf, res_list in results_by_tf.items():
 COMPONENT_CSS = """
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
-body { background: transparent; color: #e8eaf0; }
+body { background: transparent; color: #1a2332; }
 
 .card-grid {
     display: grid;
@@ -638,10 +665,15 @@ body { background: transparent; color: #e8eaf0; }
     padding: 4px 2px 8px;
 }
 .stock-card {
-    background: #1a1d27;
-    border: 1px solid #2a2d3a;
+    background: white;
+    border: 1px solid #e8ecf1;
     border-radius: 12px;
     padding: 0.85rem 1rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+.stock-card:hover {
+    border-color: #c8d0db;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
 }
 .card-header {
     display: flex;
@@ -649,12 +681,12 @@ body { background: transparent; color: #e8eaf0; }
     align-items: flex-start;
     margin-bottom: 0.6rem;
 }
-.stock-name { font-size: 0.92rem; font-weight: 700; color: #fff; }
+.stock-name { font-size: 0.92rem; font-weight: 700; color: #1a2332; }
 .ltp-block { text-align: right; }
-.ltp-price { font-size: 0.88rem; font-weight: 600; color: #e8eaf0; }
+.ltp-price { font-size: 0.88rem; font-weight: 600; color: #1a2332; }
 .ltp-change { font-size: 0.7rem; font-weight: 600; margin-top: 1px; }
-.pos { color: #4ade80; }
-.neg { color: #f87171; }
+.pos { color: #1a8a3a; }
+.neg { color: #c92a2a; }
 
 .sig-row { display: flex; gap: 0.4rem; margin-bottom: 0.6rem; }
 .tf-badge {
@@ -667,40 +699,41 @@ body { background: transparent; color: #e8eaf0; }
     line-height: 1.3;
 }
 .tf-label { font-size: 0.58rem; opacity: 0.65; display: block; margin-bottom: 2px; }
-.sig-buy  { background: #0d2b1a; color: #4ade80; border: 1px solid #1a5c38; }
-.sig-sell { background: #2b0d0d; color: #f87171; border: 1px solid #5c1a1a; }
-.sig-hold { background: #2b2200; color: #fbbf24; border: 1px solid #5c4a00; }
-.sig-wait { background: #1a1f2e; color: #6b7280; border: 1px solid #2a3a5c; }
+.sig-buy  { background: #d4edda; color: #155724; border: 1px solid #b8e0b8; }
+.sig-sell { background: #f8d7da; color: #721c24; border: 1px solid #f5c6c6; }
+.sig-hold { background: #fff3cd; color: #856404; border: 1px solid #f5e6b8; }
+.sig-wait { background: #e9ecef; color: #6c757d; border: 1px solid #d5d8dc; }
 
 .metrics-row { display: flex; gap: 0.4rem; margin-bottom: 0.55rem; }
 .metric-chip {
     flex: 1;
-    background: #0f1117;
-    border: 1px solid #2a2d3a;
+    background: #f8f9fa;
+    border: 1px solid #e8ecf1;
     border-radius: 6px;
     padding: 4px 5px;
     text-align: center;
 }
-.m-label { font-size: 0.56rem; color: #6b7280; display: block; }
-.m-val   { font-size: 0.78rem; font-weight: 600; color: #c8cfe0; }
+.m-label { font-size: 0.56rem; color: #6b7a8f; display: block; }
+.m-val   { font-size: 0.78rem; font-weight: 600; color: #1a2332; }
 
 .strength-wrap { margin-top: 0.1rem; }
-.strength-label { display: flex; justify-content: space-between; font-size: 0.58rem; color: #6b7280; margin-bottom: 3px; }
-.strength-bar { height: 4px; border-radius: 2px; background: #2a2d3a; overflow: hidden; }
+.strength-label { display: flex; justify-content: space-between; font-size: 0.58rem; color: #6b7a8f; margin-bottom: 3px; }
+.strength-bar { height: 4px; border-radius: 2px; background: #e8ecf1; overflow: hidden; }
 .strength-fill { height: 100%; border-radius: 2px; }
-.s-high { background: linear-gradient(90deg, #16a34a, #4ade80); }
-.s-mid  { background: linear-gradient(90deg, #d97706, #fbbf24); }
-.s-low  { background: linear-gradient(90deg, #b91c1c, #f87171); }
+.s-high { background: linear-gradient(90deg, #28a745, #5dd87a); }
+.s-mid  { background: linear-gradient(90deg, #d4a017, #f5c842); }
+.s-low  { background: linear-gradient(90deg, #c92a2a, #f06060); }
 
-.summary-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+.summary-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
 .summary-table th {
-    background: #1a1d27; color: #6b7280; font-weight: 600;
-    padding: 8px 10px; text-align: left; border-bottom: 1px solid #2a2d3a;
+    background: #f0f2f5; color: #4a5a6f; font-weight: 600;
+    padding: 8px 12px; text-align: left; border-bottom: 2px solid #e8ecf1;
     font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.4px;
 }
-.summary-table td { padding: 7px 10px; border-bottom: 1px solid #1a1d27; color: #c8cfe0; vertical-align: middle; }
-.summary-table tr:hover td { background: #1a1d27; }
-.td-sig { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 0.67rem; font-weight: 700; }
+.summary-table td { padding: 7px 12px; border-bottom: 1px solid #e8ecf1; color: #1a2332; vertical-align: middle; }
+.summary-table tr:hover td { background: #f8f9fa; }
+.summary-table tr:last-child td { border-bottom: none; }
+.td-sig { display: inline-block; padding: 2px 10px; border-radius: 6px; font-size: 0.67rem; font-weight: 700; }
 
 @media (max-width: 500px) {
     .card-grid { grid-template-columns: 1fr; }
@@ -734,9 +767,9 @@ else:
 
 # ── FOOTER ─────────────────────────────────────────────────────────
 st.markdown("""
-<div style="text-align:center; margin-top:2rem; font-size:0.65rem; color:#4b5563; border-top:1px solid #2a2d3a; padding-top:0.75rem;">
-    Created with ❤️ by <strong style="color:#93c5fd;">Supriya Jaiswal</strong> &nbsp;|&nbsp; 
-    📧 <a href="mailto:supriyajswl43@gmail.com" style="color:#6b7280;text-decoration:none;">supriyajswl43@gmail.com</a> &nbsp;|&nbsp;
+<div style="text-align:center; margin-top:2rem; font-size:0.7rem; color:#6b7a8f; border-top:2px solid #e8ecf1; padding-top:0.75rem; background:white; border-radius:10px; padding:0.75rem;">
+    Created with ❤️ by <strong style="color:#1a2332;">Supriya Jaiswal</strong> &nbsp;|&nbsp; 
+    📧 <a href="mailto:supriyajswl43@gmail.com" style="color:#4a6a8a;text-decoration:none;">supriyajswl43@gmail.com</a> &nbsp;|&nbsp;
     ⚠️ Educational purposes only. Not financial advice. &nbsp;|&nbsp; 
     📊 NIFTY 50 stocks tracked
 </div>
