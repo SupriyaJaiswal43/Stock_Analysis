@@ -103,19 +103,21 @@ st.markdown("""
 
 .stApp {
     background: linear-gradient(135deg, #f0f4f8 0%, #e2e8f0 100%);
+    min-height: 100vh;
 }
 
 .block-container {
-    padding: 1rem 1rem 2rem !important;
+    padding: 0.75rem 0.75rem 1.5rem !important;
     max-width: 1280px !important;
+    margin: 0 auto !important;
 }
 
 /* ── Premium Header ── */
 .premium-header {
     background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
-    padding: 1.5rem 2rem;
-    border-radius: 20px;
-    margin-bottom: 1.5rem;
+    padding: 1rem 1.2rem;
+    border-radius: 16px;
+    margin-bottom: 1rem;
     box-shadow: 0 20px 60px rgba(15, 23, 42, 0.3);
     position: relative;
     overflow: hidden;
@@ -139,25 +141,25 @@ st.markdown("""
     justify-content: space-between;
     align-items: center;
     flex-wrap: wrap;
-    gap: 1rem;
+    gap: 0.75rem;
 }
 
 .header-left {
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: 0.75rem;
 }
 
 .header-icon {
-    font-size: 2.5rem;
+    font-size: 2rem;
     background: rgba(56, 189, 248, 0.15);
-    padding: 0.5rem;
-    border-radius: 16px;
+    padding: 0.4rem;
+    border-radius: 14px;
     border: 1px solid rgba(56, 189, 248, 0.2);
 }
 
 .header-title h1 {
-    font-size: clamp(1.3rem, 3vw, 2rem);
+    font-size: clamp(1rem, 2.5vw, 1.8rem);
     font-weight: 800;
     color: #ffffff;
     margin: 0;
@@ -165,7 +167,7 @@ st.markdown("""
 }
 
 .header-title .subtitle {
-    font-size: 0.75rem;
+    font-size: 0.65rem;
     color: #94a3b8;
     margin-top: 2px;
     display: flex;
@@ -177,16 +179,16 @@ st.markdown("""
 .header-right {
     display: flex;
     align-items: center;
-    gap: 1.5rem;
+    gap: 1rem;
     flex-wrap: wrap;
 }
 
 .live-badge {
     background: #dc2626;
     color: white;
-    padding: 4px 14px;
+    padding: 3px 12px;
     border-radius: 999px;
-    font-size: 0.7rem;
+    font-size: 0.65rem;
     font-weight: 700;
     letter-spacing: 0.5px;
     animation: pulse 2s infinite;
@@ -196,8 +198,8 @@ st.markdown("""
 }
 
 .live-dot {
-    width: 8px;
-    height: 8px;
+    width: 7px;
+    height: 7px;
     background: white;
     border-radius: 50%;
     animation: blink 1s infinite;
@@ -215,7 +217,7 @@ st.markdown("""
 
 .header-stats {
     display: flex;
-    gap: 1.5rem;
+    gap: 1rem;
 }
 
 .header-stat {
@@ -223,14 +225,14 @@ st.markdown("""
 }
 
 .header-stat .num {
-    font-size: 1.1rem;
+    font-size: 1rem;
     font-weight: 700;
     color: #ffffff;
     display: block;
 }
 
 .header-stat .label {
-    font-size: 0.6rem;
+    font-size: 0.55rem;
     color: #94a3b8;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -240,19 +242,20 @@ st.markdown("""
 .rules-bar {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.6rem;
-    margin-bottom: 1.5rem;
+    gap: 0.4rem;
+    margin-bottom: 1rem;
     justify-content: center;
 }
 
 .rule-pill {
-    padding: 6px 18px;
+    padding: 4px 14px;
     border-radius: 999px;
-    font-size: 0.7rem;
+    font-size: 0.65rem;
     font-weight: 600;
     letter-spacing: 0.3px;
     transition: all 0.3s ease;
     cursor: default;
+    white-space: nowrap;
 }
 
 .rule-pill:hover {
@@ -298,16 +301,16 @@ st.markdown("""
 .refresh-wrapper {
     display: flex;
     justify-content: center;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem;
 }
 
 .refresh-btn {
     background: linear-gradient(135deg, #0f172a, #1e293b);
     color: white;
     border: none;
-    padding: 10px 40px;
+    padding: 8px 32px;
     border-radius: 12px;
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.3s ease;
@@ -322,22 +325,18 @@ st.markdown("""
     box-shadow: 0 8px 30px rgba(15, 23, 42, 0.35);
 }
 
-.refresh-btn:active {
-    transform: translateY(0px);
-}
-
 /* ── Stats Row ── */
 .stats-row {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-    gap: 0.75rem;
-    margin-bottom: 1.5rem;
+    grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+    gap: 0.6rem;
+    margin-bottom: 1rem;
 }
 
 .stat-card {
     background: white;
-    padding: 0.8rem 1rem;
-    border-radius: 14px;
+    padding: 0.6rem 0.8rem;
+    border-radius: 12px;
     text-align: center;
     box-shadow: 0 2px 8px rgba(0,0,0,0.04);
     border: 1px solid #e8ecf1;
@@ -350,13 +349,13 @@ st.markdown("""
 }
 
 .stat-card .stat-value {
-    font-size: 1.4rem;
+    font-size: 1.2rem;
     font-weight: 800;
     display: block;
 }
 
 .stat-card .stat-label {
-    font-size: 0.6rem;
+    font-size: 0.55rem;
     color: #6b7a8f;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -371,21 +370,27 @@ st.markdown("""
 
 /* ── Tabs ── */
 .stTabs [data-baseweb="tab-list"] {
-    gap: 6px;
+    gap: 4px;
     background: white;
-    border-radius: 14px;
-    padding: 6px;
+    border-radius: 12px;
+    padding: 4px;
     border: 1px solid #e8ecf1;
     box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    flex-wrap: nowrap;
+    overflow-x: auto;
 }
 
 .stTabs [data-baseweb="tab"] {
-    border-radius: 10px;
+    border-radius: 8px;
     color: #6b7a8f;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     font-weight: 500;
-    padding: 8px 20px;
+    padding: 6px 16px;
     transition: all 0.3s ease;
+    white-space: nowrap;
+    flex: 1;
+    text-align: center;
+    min-width: 80px;
 }
 
 .stTabs [data-baseweb="tab"]:hover {
@@ -401,16 +406,16 @@ st.markdown("""
 /* ── Card Grid ── */
 .card-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
-    gap: 0.8rem;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 0.7rem;
     margin-top: 0.5rem;
 }
 
 /* ── Premium Stock Card ── */
 .stock-card {
     background: white;
-    border-radius: 16px;
-    padding: 1rem 1.2rem;
+    border-radius: 14px;
+    padding: 0.9rem 1rem;
     border: 1px solid #e8ecf1;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: 0 2px 8px rgba(0,0,0,0.04);
@@ -451,26 +456,27 @@ st.markdown("""
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: 0.6rem;
+    margin-bottom: 0.5rem;
 }
 
 .stock-name-wrap {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
+    flex-wrap: wrap;
 }
 
 .stock-rank {
-    font-size: 0.7rem;
+    font-size: 0.65rem;
     font-weight: 700;
     color: #6b7a8f;
     background: #f1f5f9;
-    padding: 2px 10px;
+    padding: 2px 8px;
     border-radius: 999px;
 }
 
 .stock-name {
-    font-size: 0.95rem;
+    font-size: 0.85rem;
     font-weight: 700;
     color: #0f172a;
 }
@@ -480,15 +486,15 @@ st.markdown("""
 }
 
 .ltp-price {
-    font-size: 0.95rem;
+    font-size: 0.85rem;
     font-weight: 700;
     color: #0f172a;
 }
 
 .ltp-change {
-    font-size: 0.7rem;
+    font-size: 0.65rem;
     font-weight: 600;
-    padding: 2px 10px;
+    padding: 2px 8px;
     border-radius: 999px;
 }
 
@@ -505,18 +511,19 @@ st.markdown("""
 /* Signal Row */
 .sig-row {
     display: flex;
-    gap: 0.4rem;
-    margin-bottom: 0.6rem;
+    gap: 0.3rem;
+    margin-bottom: 0.5rem;
 }
 
 .tf-badge {
     flex: 1;
     text-align: center;
-    padding: 6px 4px;
-    border-radius: 10px;
-    font-size: 0.65rem;
+    padding: 4px 3px;
+    border-radius: 8px;
+    font-size: 0.6rem;
     font-weight: 700;
     transition: all 0.2s ease;
+    min-width: 0;
 }
 
 .tf-badge:hover {
@@ -524,9 +531,9 @@ st.markdown("""
 }
 
 .tf-label {
-    font-size: 0.55rem;
+    font-size: 0.5rem;
     opacity: 0.65;
-    margin-bottom: 2px;
+    margin-bottom: 1px;
     display: block;
     text-transform: uppercase;
     letter-spacing: 0.3px;
@@ -559,21 +566,23 @@ st.markdown("""
 /* Metrics */
 .metrics-row {
     display: flex;
-    gap: 0.4rem;
-    margin-bottom: 0.5rem;
+    gap: 0.3rem;
+    margin-bottom: 0.4rem;
+    flex-wrap: wrap;
 }
 
 .metric-chip {
     flex: 1;
     background: #f8fafc;
     border: 1px solid #e8ecf1;
-    border-radius: 8px;
-    padding: 4px 6px;
+    border-radius: 6px;
+    padding: 3px 5px;
     text-align: center;
+    min-width: 40px;
 }
 
 .metric-chip .m-label {
-    font-size: 0.5rem;
+    font-size: 0.45rem;
     color: #6b7a8f;
     display: block;
     text-transform: uppercase;
@@ -581,28 +590,28 @@ st.markdown("""
 }
 
 .metric-chip .m-val {
-    font-size: 0.78rem;
+    font-size: 0.7rem;
     font-weight: 600;
     color: #0f172a;
 }
 
 /* Strength */
 .strength-wrap {
-    margin-top: 0.4rem;
+    margin-top: 0.3rem;
 }
 
 .strength-label {
     display: flex;
     justify-content: space-between;
-    font-size: 0.55rem;
+    font-size: 0.5rem;
     color: #6b7a8f;
-    margin-bottom: 4px;
+    margin-bottom: 3px;
     text-transform: uppercase;
     letter-spacing: 0.3px;
 }
 
 .strength-bar {
-    height: 5px;
+    height: 4px;
     border-radius: 4px;
     background: #e8ecf1;
     overflow: hidden;
@@ -630,9 +639,9 @@ st.markdown("""
 .summary-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.78rem;
+    font-size: 0.7rem;
     background: white;
-    border-radius: 16px;
+    border-radius: 14px;
     overflow: hidden;
     box-shadow: 0 2px 8px rgba(0,0,0,0.04);
 }
@@ -641,16 +650,16 @@ st.markdown("""
     background: #f8fafc;
     color: #4a5a6f;
     font-weight: 600;
-    padding: 12px 14px;
+    padding: 10px 12px;
     text-align: left;
     border-bottom: 2px solid #e8ecf1;
-    font-size: 0.65rem;
+    font-size: 0.6rem;
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
 
 .summary-table td {
-    padding: 10px 14px;
+    padding: 8px 12px;
     border-bottom: 1px solid #f1f5f9;
     color: #0f172a;
     vertical-align: middle;
@@ -666,26 +675,27 @@ st.markdown("""
 
 .td-sig {
     display: inline-block;
-    padding: 3px 12px;
-    border-radius: 8px;
-    font-size: 0.65rem;
+    padding: 2px 10px;
+    border-radius: 6px;
+    font-size: 0.6rem;
     font-weight: 700;
 }
 
 /* ── Footer ── */
 .premium-footer {
     text-align: center;
-    margin-top: 2rem;
-    padding: 1.2rem;
+    margin-top: 1.5rem;
+    padding: 1rem;
     background: white;
-    border-radius: 16px;
+    border-radius: 14px;
     border: 1px solid #e8ecf1;
     box-shadow: 0 2px 8px rgba(0,0,0,0.04);
 }
 
 .premium-footer .footer-text {
-    font-size: 0.7rem;
+    font-size: 0.65rem;
     color: #6b7a8f;
+    line-height: 1.6;
 }
 
 .premium-footer .highlight {
@@ -705,59 +715,308 @@ st.markdown("""
 
 .premium-footer .divider {
     display: inline-block;
-    margin: 0 8px;
+    margin: 0 6px;
     color: #d1d5db;
 }
 
-/* ── Mobile ── */
-@media (max-width: 640px) {
+/* ── Tablet & Desktop Responsive ── */
+
+/* Tablet (768px - 1024px) */
+@media (min-width: 768px) and (max-width: 1024px) {
+    .card-grid {
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 0.6rem;
+    }
+    
+    .stats-row {
+        grid-template-columns: repeat(5, 1fr);
+        gap: 0.5rem;
+    }
+    
+    .stock-card {
+        padding: 0.8rem;
+    }
+    
+    .block-container {
+        padding: 0.6rem 0.6rem 1.2rem !important;
+    }
+}
+
+/* Desktop (1025px+) */
+@media (min-width: 1025px) {
+    .card-grid {
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 0.8rem;
+    }
+    
+    .stats-row {
+        grid-template-columns: repeat(5, 1fr);
+        gap: 0.8rem;
+    }
+    
+    .stock-card {
+        padding: 1rem 1.2rem;
+    }
+    
+    .block-container {
+        padding: 1rem 1.5rem 2rem !important;
+    }
+}
+
+/* ── Mobile (up to 767px) ── */
+@media (max-width: 767px) {
+    .block-container {
+        padding: 0.4rem 0.4rem 1rem !important;
+    }
+    
+    .premium-header {
+        padding: 0.7rem 0.8rem;
+        border-radius: 12px;
+    }
+    
     .header-content {
         flex-direction: column;
-        align-items: flex-start;
+        align-items: stretch;
+        gap: 0.5rem;
+    }
+    
+    .header-left {
+        gap: 0.5rem;
+    }
+    
+    .header-icon {
+        font-size: 1.5rem;
+        padding: 0.3rem;
+        border-radius: 10px;
+    }
+    
+    .header-title h1 {
+        font-size: 1rem;
+    }
+    
+    .header-title .subtitle {
+        font-size: 0.55rem;
+        gap: 0.3rem;
     }
     
     .header-right {
-        width: 100%;
         justify-content: space-between;
+        gap: 0.5rem;
     }
     
     .header-stats {
-        gap: 1rem;
+        gap: 0.6rem;
     }
     
     .header-stat .num {
-        font-size: 0.9rem;
+        font-size: 0.85rem;
     }
     
-    .card-grid {
-        grid-template-columns: 1fr;
+    .header-stat .label {
+        font-size: 0.5rem;
+    }
+    
+    .live-badge {
+        font-size: 0.55rem;
+        padding: 2px 10px;
+    }
+    
+    .live-dot {
+        width: 6px;
+        height: 6px;
     }
     
     .rules-bar {
-        gap: 0.4rem;
+        gap: 0.3rem;
+        margin-bottom: 0.7rem;
     }
     
     .rule-pill {
-        font-size: 0.6rem;
-        padding: 4px 12px;
+        font-size: 0.55rem;
+        padding: 3px 10px;
+        white-space: normal;
+        word-break: break-word;
     }
     
     .stats-row {
         grid-template-columns: repeat(3, 1fr);
-        gap: 0.5rem;
+        gap: 0.4rem;
+        margin-bottom: 0.7rem;
+    }
+    
+    .stat-card {
+        padding: 0.4rem 0.3rem;
+        border-radius: 10px;
     }
     
     .stat-card .stat-value {
-        font-size: 1.1rem;
+        font-size: 1rem;
+    }
+    
+    .stat-card .stat-label {
+        font-size: 0.5rem;
+    }
+    
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 3px;
+        padding: 3px;
+        border-radius: 10px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        font-size: 0.65rem;
+        padding: 4px 12px;
+        min-width: 60px;
+        flex: 1;
+    }
+    
+    .card-grid {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+    }
+    
+    .stock-card {
+        padding: 0.7rem;
+        border-radius: 12px;
+    }
+    
+    .stock-name {
+        font-size: 0.8rem;
+    }
+    
+    .ltp-price {
+        font-size: 0.8rem;
+    }
+    
+    .ltp-change {
+        font-size: 0.6rem;
+        padding: 2px 6px;
+    }
+    
+    .tf-badge {
+        font-size: 0.55rem;
+        padding: 3px 2px;
+    }
+    
+    .tf-label {
+        font-size: 0.45rem;
+    }
+    
+    .metric-chip .m-val {
+        font-size: 0.65rem;
+    }
+    
+    .metric-chip .m-label {
+        font-size: 0.4rem;
     }
     
     .summary-table {
-        font-size: 0.68rem;
+        font-size: 0.6rem;
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+        -webkit-overflow-scrolling: touch;
     }
     
     .summary-table th,
     .summary-table td {
-        padding: 6px 8px;
+        padding: 5px 8px;
+    }
+    
+    .summary-table th {
+        font-size: 0.55rem;
+    }
+    
+    .td-sig {
+        font-size: 0.55rem;
+        padding: 2px 6px;
+    }
+    
+    .premium-footer {
+        padding: 0.7rem;
+        margin-top: 1rem;
+        border-radius: 12px;
+    }
+    
+    .premium-footer .footer-text {
+        font-size: 0.55rem;
+    }
+    
+    .premium-footer .divider {
+        margin: 0 3px;
+    }
+}
+
+/* ── Very Small Mobile (up to 400px) ── */
+@media (max-width: 400px) {
+    .block-container {
+        padding: 0.2rem 0.2rem 0.8rem !important;
+    }
+    
+    .premium-header {
+        padding: 0.5rem 0.6rem;
+        border-radius: 10px;
+    }
+    
+    .header-icon {
+        font-size: 1.2rem;
+        padding: 0.2rem;
+        border-radius: 8px;
+    }
+    
+    .header-title h1 {
+        font-size: 0.85rem;
+    }
+    
+    .header-title .subtitle {
+        font-size: 0.5rem;
+    }
+    
+    .header-stat .num {
+        font-size: 0.75rem;
+    }
+    
+    .rule-pill {
+        font-size: 0.5rem;
+        padding: 2px 8px;
+    }
+    
+    .stats-row {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.3rem;
+    }
+    
+    .stat-card .stat-value {
+        font-size: 0.85rem;
+    }
+    
+    .stock-card {
+        padding: 0.6rem;
+        border-radius: 10px;
+    }
+    
+    .stock-name {
+        font-size: 0.7rem;
+    }
+    
+    .ltp-price {
+        font-size: 0.7rem;
+    }
+    
+    .tf-badge {
+        font-size: 0.5rem;
+        padding: 2px 1px;
+    }
+    
+    .summary-table {
+        font-size: 0.5rem;
+    }
+    
+    .summary-table th,
+    .summary-table td {
+        padding: 4px 5px;
     }
 }
 
@@ -770,6 +1029,38 @@ st.markdown("""
 #MainMenu { visibility: hidden; }
 footer { visibility: hidden; }
 header { visibility: hidden; }
+
+/* Fix for Streamlit elements */
+.stButton button {
+    width: 100%;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.stAlert {
+    border-radius: 12px;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #c8d0db;
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -1031,14 +1322,14 @@ def summary_table_html(top_10, all_res):
             return f'<span class="td-sig {sc}">{SIG_ICON.get(r.get("Signal", "WAIT"), "WAIT")}</span>'
 
         rows += f"""<tr>
-            <td style="color:#6b7a8f;font-size:0.7rem;font-weight:700;">{medal}</td>
-            <td><strong style="color:#0f172a;">{stock}</strong></td>
-            <td style="font-weight:600;">₹{ltp:,.0f}</td>
-            <td class="{chg_cls}" style="font-weight:600;">{"▲" if chg>=0 else "▼"} {abs(chg):.1f}%</td>
+            <td style="color:#6b7a8f;font-size:0.65rem;font-weight:700;">{medal}</td>
+            <td><strong style="color:#0f172a;font-size:0.75rem;">{stock}</strong></td>
+            <td style="font-weight:600;font-size:0.75rem;">₹{ltp:,.0f}</td>
+            <td class="{chg_cls}" style="font-weight:600;font-size:0.7rem;">{"▲" if chg>=0 else "▼"} {abs(chg):.1f}%</td>
             <td>{td_sig(r1h)}</td>
             <td>{td_sig(r4h)}</td>
             <td>{td_sig(r1d)}</td>
-            <td style="color:#6b7a8f;font-size:0.6rem;">{as_of}</td>
+            <td style="color:#6b7a8f;font-size:0.55rem;">{as_of}</td>
         </tr>"""
 
     return f"""
@@ -1169,15 +1460,15 @@ body { background: transparent; }
 
 .card-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
     gap: 0.7rem;
     padding: 4px 2px 8px;
 }
 
 .stock-card {
     background: white;
-    border-radius: 16px;
-    padding: 1rem 1.2rem;
+    border-radius: 14px;
+    padding: 0.9rem 1rem;
     border: 1px solid #e8ecf1;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: 0 2px 8px rgba(0,0,0,0.04);
@@ -1217,77 +1508,112 @@ body { background: transparent; }
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: 0.6rem;
+    margin-bottom: 0.5rem;
 }
 
 .stock-name-wrap {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
+    flex-wrap: wrap;
 }
 
 .stock-rank {
-    font-size: 0.7rem;
+    font-size: 0.65rem;
     font-weight: 700;
     color: #6b7a8f;
     background: #f1f5f9;
-    padding: 2px 10px;
+    padding: 2px 8px;
     border-radius: 999px;
 }
 
 .stock-name {
-    font-size: 0.95rem;
+    font-size: 0.85rem;
     font-weight: 700;
     color: #0f172a;
 }
 
 .ltp-block { text-align: right; }
-.ltp-price { font-size: 0.95rem; font-weight: 700; color: #0f172a; }
-.ltp-change { font-size: 0.7rem; font-weight: 600; padding: 2px 10px; border-radius: 999px; }
+.ltp-price { font-size: 0.85rem; font-weight: 700; color: #0f172a; }
+.ltp-change { font-size: 0.65rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
 .ltp-change.pos { background: #dcfce7; color: #15803d; }
 .ltp-change.neg { background: #fee2e2; color: #b91c1c; }
 
-.sig-row { display: flex; gap: 0.4rem; margin-bottom: 0.6rem; }
+.sig-row { display: flex; gap: 0.3rem; margin-bottom: 0.5rem; }
 .tf-badge {
     flex: 1;
     text-align: center;
-    padding: 6px 4px;
-    border-radius: 10px;
-    font-size: 0.65rem;
+    padding: 4px 3px;
+    border-radius: 8px;
+    font-size: 0.6rem;
     font-weight: 700;
     transition: all 0.2s ease;
+    min-width: 0;
 }
 .tf-badge:hover { transform: scale(1.05); }
-.tf-label { font-size: 0.55rem; opacity: 0.65; margin-bottom: 2px; display: block; text-transform: uppercase; letter-spacing: 0.3px; }
+.tf-label { font-size: 0.5rem; opacity: 0.65; margin-bottom: 1px; display: block; text-transform: uppercase; letter-spacing: 0.3px; }
 .tf-badge.sig-buy { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
 .tf-badge.sig-sell { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
 .tf-badge.sig-hold { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
 .tf-badge.sig-wait { background: #f1f5f9; color: #6b7a8f; border: 1px solid #e2e8f0; }
 
-.metrics-row { display: flex; gap: 0.4rem; margin-bottom: 0.5rem; }
-.metric-chip { flex: 1; background: #f8fafc; border: 1px solid #e8ecf1; border-radius: 8px; padding: 4px 6px; text-align: center; }
-.metric-chip .m-label { font-size: 0.5rem; color: #6b7a8f; display: block; text-transform: uppercase; letter-spacing: 0.3px; }
-.metric-chip .m-val { font-size: 0.78rem; font-weight: 600; color: #0f172a; }
+.metrics-row { display: flex; gap: 0.3rem; margin-bottom: 0.4rem; flex-wrap: wrap; }
+.metric-chip { flex: 1; background: #f8fafc; border: 1px solid #e8ecf1; border-radius: 6px; padding: 3px 5px; text-align: center; min-width: 40px; }
+.metric-chip .m-label { font-size: 0.45rem; color: #6b7a8f; display: block; text-transform: uppercase; letter-spacing: 0.3px; }
+.metric-chip .m-val { font-size: 0.7rem; font-weight: 600; color: #0f172a; }
 
-.strength-wrap { margin-top: 0.4rem; }
-.strength-label { display: flex; justify-content: space-between; font-size: 0.55rem; color: #6b7a8f; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.3px; }
-.strength-bar { height: 5px; border-radius: 4px; background: #e8ecf1; overflow: hidden; }
+.strength-wrap { margin-top: 0.3rem; }
+.strength-label { display: flex; justify-content: space-between; font-size: 0.5rem; color: #6b7a8f; margin-bottom: 3px; text-transform: uppercase; letter-spacing: 0.3px; }
+.strength-bar { height: 4px; border-radius: 4px; background: #e8ecf1; overflow: hidden; }
 .strength-fill { height: 100%; border-radius: 4px; transition: width 0.8s ease; }
 .strength-fill.s-high { background: linear-gradient(90deg, #4ade80, #16a34a); }
 .strength-fill.s-mid { background: linear-gradient(90deg, #fbbf24, #d97706); }
 .strength-fill.s-low { background: linear-gradient(90deg, #f87171, #dc2626); }
 
-.summary-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
-.summary-table th { background: #f8fafc; color: #4a5a6f; font-weight: 600; padding: 12px 14px; text-align: left; border-bottom: 2px solid #e8ecf1; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.5px; }
-.summary-table td { padding: 10px 14px; border-bottom: 1px solid #f1f5f9; color: #0f172a; vertical-align: middle; }
+.summary-table { width: 100%; border-collapse: collapse; font-size: 0.7rem; background: white; border-radius: 14px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+.summary-table th { background: #f8fafc; color: #4a5a6f; font-weight: 600; padding: 10px 12px; text-align: left; border-bottom: 2px solid #e8ecf1; font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.5px; }
+.summary-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; color: #0f172a; vertical-align: middle; }
 .summary-table tr:hover td { background: #f8fafc; }
 .summary-table tr:last-child td { border-bottom: none; }
-.td-sig { display: inline-block; padding: 3px 12px; border-radius: 8px; font-size: 0.65rem; font-weight: 700; }
+.td-sig { display: inline-block; padding: 2px 10px; border-radius: 6px; font-size: 0.6rem; font-weight: 700; }
 
-@media (max-width: 500px) {
-    .card-grid { grid-template-columns: 1fr; }
-    .summary-table { font-size: 0.68rem; }
-    .summary-table th, .summary-table td { padding: 6px 8px; }
+/* ── Mobile (up to 767px) ── */
+@media (max-width: 767px) {
+    .card-grid { grid-template-columns: 1fr; gap: 0.5rem; }
+    .stock-card { padding: 0.7rem; border-radius: 12px; }
+    .stock-name { font-size: 0.8rem; }
+    .ltp-price { font-size: 0.8rem; }
+    .ltp-change { font-size: 0.6rem; padding: 2px 6px; }
+    .tf-badge { font-size: 0.55rem; padding: 3px 2px; }
+    .tf-label { font-size: 0.45rem; }
+    .metric-chip .m-val { font-size: 0.65rem; }
+    .metric-chip .m-label { font-size: 0.4rem; }
+    .summary-table { font-size: 0.6rem; display: block; overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; }
+    .summary-table th, .summary-table td { padding: 5px 8px; }
+    .summary-table th { font-size: 0.55rem; }
+    .td-sig { font-size: 0.55rem; padding: 2px 6px; }
+}
+
+/* ── Very Small Mobile (up to 400px) ── */
+@media (max-width: 400px) {
+    .stock-card { padding: 0.6rem; border-radius: 10px; }
+    .stock-name { font-size: 0.7rem; }
+    .ltp-price { font-size: 0.7rem; }
+    .tf-badge { font-size: 0.5rem; padding: 2px 1px; }
+    .summary-table { font-size: 0.5rem; }
+    .summary-table th, .summary-table td { padding: 4px 5px; }
+}
+
+/* ── Tablet (768px - 1024px) ── */
+@media (min-width: 768px) and (max-width: 1024px) {
+    .card-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.6rem; }
+    .stock-card { padding: 0.8rem; }
+}
+
+/* ── Desktop (1025px+) ── */
+@media (min-width: 1025px) {
+    .card-grid { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 0.8rem; }
+    .stock-card { padding: 1rem 1.2rem; }
 }
 </style>
 """
@@ -1303,13 +1629,21 @@ if top_10_names and len(top_10_names) > 0:
             r1d = all_res.get((stock, "1d"))
             cards_html += stock_card_html(stock, r1h, r4h, r1d, idx)
         cards_html += '</div>'
-        n_rows = max(1, -(-len(top_10_names) // 3))
-        card_height = n_rows * 230 + 40
+        
+        # Dynamic height based on number of stocks
+        n_rows = max(1, -(-len(top_10_names) // 2))  # 2 columns on mobile, 3 on desktop
+        if len(top_10_names) <= 5:
+            card_height = n_rows * 220 + 40
+        else:
+            card_height = n_rows * 210 + 40
+            
         components.html(COMPONENT_CSS + cards_html, height=card_height, scrolling=False)
 
     with tab2:
         tbl_html = summary_table_html(top_10_names, all_res)
-        components.html(COMPONENT_CSS + tbl_html, height=len(top_10_names) * 42 + 80, scrolling=False)
+        # Dynamic table height
+        table_height = len(top_10_names) * 38 + 70
+        components.html(COMPONENT_CSS + tbl_html, height=table_height, scrolling=False)
 else:
     st.error("❌ No data available. Please try again later.")
     st.info("💡 Tips:\n- Check internet connection\n- Yahoo Finance might be temporarily unavailable\n- Try refreshing after 1-2 minutes")
