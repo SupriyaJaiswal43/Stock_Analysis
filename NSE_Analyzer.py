@@ -15,7 +15,7 @@ import streamlit.components.v1 as components
 import pandas as pd
 import yfinance as yf
 import numpy as np
-from datetime import datetime
+from datetime import datetime, timedelta
 import time
 import warnings
 warnings.filterwarnings("ignore")
@@ -1098,21 +1098,46 @@ def signal_strength(rsi, stk, macd_h, vol, avg_vol):
     return min(100, score)
 
 def fetch_live_data(ticker, interval):
+    """Fetch data with fallback for 4h interval"""
     try:
-        df = yf.download(ticker, period=f"{LOOKBACK_DAYS}d",
+        # For 4h, try with longer period to get enough data
+        if interval == "4h":
+            period = "60d"  # Need more data for 4h
+        else:
+            period = f"{LOOKBACK_DAYS}d"
+            
+        df = yf.download(ticker, period=period,
                          interval=interval, progress=False, auto_adjust=True, timeout=15)
+        
         if df is not None and len(df) > RSI_PERIOD + 5:
             if isinstance(df.columns, pd.MultiIndex):
                 df.columns = df.columns.get_level_values(0)
             return df[~df.index.duplicated(keep="last")].sort_index(), True
+        
+        # If 4h fails, try with 1h data and resample
+        if interval == "4h":
+            df_hourly, ok = fetch_live_data(ticker, "1h")
+            if ok and df_hourly is not None and len(df_hourly) > 20:
+                # Resample to 4h
+                df_4h = df_hourly.resample('4H').agg({
+                    'Open': 'first',
+                    'High': 'max',
+                    'Low': 'min',
+                    'Close': 'last',
+                    'Volume': 'sum'
+                }).dropna()
+                if len(df_4h) > RSI_PERIOD + 5:
+                    return df_4h, True
+        
         return None, False
-    except:
+    except Exception as e:
         return None, False
 
 def analyse_stock(name, ticker, interval):
     df, ok = fetch_live_data(ticker, interval)
-    if not ok or df is None:
+    if not ok or df is None or len(df) < RSI_PERIOD + 5:
         return None
+    
     ha = to_heikin_ashi(df)
     ha["RSI"] = calc_rsi(ha["HA_Close"], RSI_PERIOD)
     ha["SK"], ha["SD"] = calc_stoch(ha["HA_High"], ha["HA_Low"], ha["HA_Close"], STOCH_K, STOCH_D)
@@ -1143,6 +1168,7 @@ def analyse_stock(name, ticker, interval):
         "Support": round(float(lat["SUPP"]), 2) if pd.notna(lat["SUPP"]) else None,
         "Resistance": round(float(lat["RES"]), 2) if pd.notna(lat["RES"]) else None,
         "As_of": ha.index[-1].strftime("%d-%b %H:%M"),
+        "DataPoints": len(ha)
     }
 
 @st.cache_data(ttl=300)
@@ -1167,7 +1193,7 @@ def get_all_data():
                 if r: 
                     tf_res.append(r)
                 time.sleep(0.1)
-            except:
+            except Exception as e:
                 continue
         results_by_tf[tf] = tf_res
     
@@ -1215,6 +1241,25 @@ def stock_card_html(name, r1h, r4h, r1d, rank):
         sk_1h = "–"
         sig_1h = "WAIT"
     
+    # Get 4h data with fallback
+    if r4h:
+        rsi_4h = r4h["RSI"]
+        sk_4h = r4h["SK"]
+        sig_4h = r4h["Signal"]
+    else:
+        rsi_4h = "–"
+        sk_4h = "–"
+        sig_4h = "WAIT"
+    
+    if r1d:
+        rsi_1d = r1d["RSI"]
+        sk_1d = r1d["SK"]
+        sig_1d = r1d["Signal"]
+    else:
+        rsi_1d = "–"
+        sk_1d = "–"
+        sig_1d = "WAIT"
+    
     strengths = []
     if r1h and "Strength" in r1h:
         strengths.append(r1h["Strength"])
@@ -1233,18 +1278,16 @@ def stock_card_html(name, r1h, r4h, r1d, rank):
     
     medal = "🥇" if rank == 1 else "🥈" if rank == 2 else "🥉" if rank == 3 else f"#{rank}"
 
-    def tf_badge(r, label):
-        if not r:
-            return f'<div class="tf-badge sig-wait"><span class="tf-label">{label}</span>… WAIT</div>'
-        sc = SIG_CLASS.get(r.get("Signal", "WAIT"), "sig-wait")
-        ic = SIG_ICON.get(r.get("Signal", "WAIT"), "WAIT")
+    def tf_badge(sig, label):
+        sc = SIG_CLASS.get(sig, "sig-wait")
+        ic = SIG_ICON.get(sig, "WAIT")
         return f'<div class="tf-badge {sc}"><span class="tf-label">{label}</span>{ic}</div>'
 
     sig_row = f"""
     <div class="sig-row">
-        {tf_badge(r1h, "1H")}
-        {tf_badge(r4h, "4H")}
-        {tf_badge(r1d, "1D")}
+        {tf_badge(sig_1h, "1H")}
+        {tf_badge(sig_4h, "4H")}
+        {tf_badge(sig_1d, "1D")}
     </div>"""
 
     def metric_chip(label, val):
@@ -1254,8 +1297,8 @@ def stock_card_html(name, r1h, r4h, r1d, rank):
     <div class="metrics-row">
         {metric_chip("RSI 1H", rsi_1h)}
         {metric_chip("SK 1H", sk_1h)}
-        {metric_chip("RSI 1D", r1d["RSI"] if r1d else '–')}
-        {metric_chip("SK 1D", r1d["SK"] if r1d else '–')}
+        {metric_chip("RSI 4H", rsi_4h)}
+        {metric_chip("SK 4H", sk_4h)}
     </div>"""
 
     return f"""
@@ -1294,20 +1337,18 @@ def summary_table_html(top_10, all_res):
         chg_cls = "pos" if chg >= 0 else "neg"
         medal = "🥇" if rank == 1 else "🥈" if rank == 2 else "🥉" if rank == 3 else f"{rank}"
 
-        def td_sig(r):
-            if not r:
-                return '<span class="td-sig sig-wait">… WAIT</span>'
-            sc = SIG_CLASS.get(r.get("Signal", "WAIT"), "sig-wait")
-            return f'<span class="td-sig {sc}">{SIG_ICON.get(r.get("Signal", "WAIT"), "WAIT")}</span>'
+        def td_sig(sig):
+            sc = SIG_CLASS.get(sig, "sig-wait")
+            return f'<span class="td-sig {sc}">{SIG_ICON.get(sig, "WAIT")}</span>'
 
         rows += f"""<tr>
             <td style="color:#6b7a8f;font-size:0.65rem;font-weight:700;">{medal}</td>
             <td><strong style="color:#0f172a;font-size:0.75rem;">{stock}</strong></td>
             <td style="font-weight:600;font-size:0.75rem;">₹{ltp:,.0f}</td>
             <td class="{chg_cls}" style="font-weight:600;font-size:0.7rem;">{"▲" if chg>=0 else "▼"} {abs(chg):.1f}%</td>
-            <td>{td_sig(r1h)}</td>
-            <td>{td_sig(r4h)}</td>
-            <td>{td_sig(r1d)}</td>
+            <td>{td_sig(r1h["Signal"] if r1h else "WAIT")}</td>
+            <td>{td_sig(r4h["Signal"] if r4h else "WAIT")}</td>
+            <td>{td_sig(r1d["Signal"] if r1d else "WAIT")}</td>
             <td style="color:#6b7a8f;font-size:0.55rem;">{as_of}</td>
         </tr>"""
 
@@ -1446,11 +1487,6 @@ body {
     overflow-y: auto !important;
     height: auto !important;
     min-height: 100vh !important;
-}
-
-#root, .app-container {
-    overflow-y: auto !important;
-    height: auto !important;
 }
 
 .card-grid {
@@ -1826,19 +1862,6 @@ body {
         padding: 1rem 1.2rem; 
     }
 }
-
-/* Fix for scrolling container */
-.iframe-container {
-    overflow-y: auto !important;
-    height: auto !important;
-    max-height: none !important;
-}
-
-.scroll-container {
-    overflow-y: auto !important;
-    height: 100% !important;
-    padding-bottom: 20px !important;
-}
 </style>
 """
 
@@ -1846,27 +1869,26 @@ if top_10_names and len(top_10_names) > 0:
     tab1, tab2 = st.tabs(["🃏 Signal Cards", "📋 Summary Table"])
 
     with tab1:
-        cards_html = f'{COMPONENT_CSS}<div class="scroll-container"><div class="card-grid">'
+        cards_html = f'{COMPONENT_CSS}<div class="card-grid">'
         for idx, stock in enumerate(top_10_names, 1):
             r1h = all_res.get((stock, "1h"))
             r4h = all_res.get((stock, "4h"))
             r1d = all_res.get((stock, "1d"))
             cards_html += stock_card_html(stock, r1h, r4h, r1d, idx)
-        cards_html += '</div></div>'
+        cards_html += '</div>'
         
-        # Use a much larger height with scrolling enabled
         components.html(
             cards_html, 
-            height=800,  # Increased height
-            scrolling=True  # Enable scrolling
+            height=800,
+            scrolling=True
         )
 
     with tab2:
-        tbl_html = f'{COMPONENT_CSS}<div class="scroll-container">{summary_table_html(top_10_names, all_res)}</div>'
+        tbl_html = f'{COMPONENT_CSS}{summary_table_html(top_10_names, all_res)}'
         components.html(
             tbl_html, 
-            height=600,  # Increased height
-            scrolling=True  # Enable scrolling
+            height=600,
+            scrolling=True
         )
 else:
     st.error("❌ No data available. Please try again later.")
