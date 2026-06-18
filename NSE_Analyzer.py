@@ -304,27 +304,6 @@ st.markdown("""
     margin-bottom: 1rem;
 }
 
-.refresh-btn {
-    background: linear-gradient(135deg, #0f172a, #1e293b);
-    color: white;
-    border: none;
-    padding: 8px 32px;
-    border-radius: 12px;
-    font-size: 0.8rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.25);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.refresh-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 30px rgba(15, 23, 42, 0.35);
-}
-
 /* ── Stats Row ── */
 .stats-row {
     display: grid;
@@ -1453,16 +1432,33 @@ if top_10_names and len(top_10_names) > 0:
     </div>
     """, unsafe_allow_html=True)
 
+# ── COMPONENT CSS ──
 COMPONENT_CSS = """
 <style>
-* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
-body { background: transparent; }
+* { 
+    box-sizing: border-box; 
+    margin: 0; 
+    padding: 0; 
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; 
+}
+body { 
+    background: transparent; 
+    overflow-y: auto !important;
+    height: auto !important;
+    min-height: 100vh !important;
+}
+
+#root, .app-container {
+    overflow-y: auto !important;
+    height: auto !important;
+}
 
 .card-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
     gap: 0.7rem;
-    padding: 4px 2px 8px;
+    padding: 4px 2px 20px 2px;
+    overflow-y: visible !important;
 }
 
 .stock-card {
@@ -1533,13 +1529,39 @@ body { background: transparent; }
     color: #0f172a;
 }
 
-.ltp-block { text-align: right; }
-.ltp-price { font-size: 0.85rem; font-weight: 700; color: #0f172a; }
-.ltp-change { font-size: 0.65rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
-.ltp-change.pos { background: #dcfce7; color: #15803d; }
-.ltp-change.neg { background: #fee2e2; color: #b91c1c; }
+.ltp-block { 
+    text-align: right; 
+}
 
-.sig-row { display: flex; gap: 0.3rem; margin-bottom: 0.5rem; }
+.ltp-price { 
+    font-size: 0.85rem; 
+    font-weight: 700; 
+    color: #0f172a; 
+}
+
+.ltp-change { 
+    font-size: 0.65rem; 
+    font-weight: 600; 
+    padding: 2px 8px; 
+    border-radius: 999px; 
+}
+
+.ltp-change.pos { 
+    background: #dcfce7; 
+    color: #15803d; 
+}
+
+.ltp-change.neg { 
+    background: #fee2e2; 
+    color: #b91c1c; 
+}
+
+.sig-row { 
+    display: flex; 
+    gap: 0.3rem; 
+    margin-bottom: 0.5rem; 
+}
+
 .tf-badge {
     flex: 1;
     text-align: center;
@@ -1550,70 +1572,272 @@ body { background: transparent; }
     transition: all 0.2s ease;
     min-width: 0;
 }
-.tf-badge:hover { transform: scale(1.05); }
-.tf-label { font-size: 0.5rem; opacity: 0.65; margin-bottom: 1px; display: block; text-transform: uppercase; letter-spacing: 0.3px; }
-.tf-badge.sig-buy { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
-.tf-badge.sig-sell { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
-.tf-badge.sig-hold { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
-.tf-badge.sig-wait { background: #f1f5f9; color: #6b7a8f; border: 1px solid #e2e8f0; }
 
-.metrics-row { display: flex; gap: 0.3rem; margin-bottom: 0.4rem; flex-wrap: wrap; }
-.metric-chip { flex: 1; background: #f8fafc; border: 1px solid #e8ecf1; border-radius: 6px; padding: 3px 5px; text-align: center; min-width: 40px; }
-.metric-chip .m-label { font-size: 0.45rem; color: #6b7a8f; display: block; text-transform: uppercase; letter-spacing: 0.3px; }
-.metric-chip .m-val { font-size: 0.7rem; font-weight: 600; color: #0f172a; }
+.tf-badge:hover { 
+    transform: scale(1.05); 
+}
 
-.strength-wrap { margin-top: 0.3rem; }
-.strength-label { display: flex; justify-content: space-between; font-size: 0.5rem; color: #6b7a8f; margin-bottom: 3px; text-transform: uppercase; letter-spacing: 0.3px; }
-.strength-bar { height: 4px; border-radius: 4px; background: #e8ecf1; overflow: hidden; }
-.strength-fill { height: 100%; border-radius: 4px; transition: width 0.8s ease; }
-.strength-fill.s-high { background: linear-gradient(90deg, #4ade80, #16a34a); }
-.strength-fill.s-mid { background: linear-gradient(90deg, #fbbf24, #d97706); }
-.strength-fill.s-low { background: linear-gradient(90deg, #f87171, #dc2626); }
+.tf-label { 
+    font-size: 0.5rem; 
+    opacity: 0.65; 
+    margin-bottom: 1px; 
+    display: block; 
+    text-transform: uppercase; 
+    letter-spacing: 0.3px; 
+}
 
-.summary-table { width: 100%; border-collapse: collapse; font-size: 0.7rem; background: white; border-radius: 14px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
-.summary-table th { background: #f8fafc; color: #4a5a6f; font-weight: 600; padding: 10px 12px; text-align: left; border-bottom: 2px solid #e8ecf1; font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.5px; }
-.summary-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; color: #0f172a; vertical-align: middle; }
-.summary-table tr:hover td { background: #f8fafc; }
-.summary-table tr:last-child td { border-bottom: none; }
-.td-sig { display: inline-block; padding: 2px 10px; border-radius: 6px; font-size: 0.6rem; font-weight: 700; }
+.tf-badge.sig-buy { 
+    background: #dcfce7; 
+    color: #15803d; 
+    border: 1px solid #86efac; 
+}
+
+.tf-badge.sig-sell { 
+    background: #fee2e2; 
+    color: #b91c1c; 
+    border: 1px solid #fca5a5; 
+}
+
+.tf-badge.sig-hold { 
+    background: #fef3c7; 
+    color: #92400e; 
+    border: 1px solid #fcd34d; 
+}
+
+.tf-badge.sig-wait { 
+    background: #f1f5f9; 
+    color: #6b7a8f; 
+    border: 1px solid #e2e8f0; 
+}
+
+.metrics-row { 
+    display: flex; 
+    gap: 0.3rem; 
+    margin-bottom: 0.4rem; 
+    flex-wrap: wrap; 
+}
+
+.metric-chip { 
+    flex: 1; 
+    background: #f8fafc; 
+    border: 1px solid #e8ecf1; 
+    border-radius: 6px; 
+    padding: 3px 5px; 
+    text-align: center; 
+    min-width: 40px; 
+}
+
+.metric-chip .m-label { 
+    font-size: 0.45rem; 
+    color: #6b7a8f; 
+    display: block; 
+    text-transform: uppercase; 
+    letter-spacing: 0.3px; 
+}
+
+.metric-chip .m-val { 
+    font-size: 0.7rem; 
+    font-weight: 600; 
+    color: #0f172a; 
+}
+
+.strength-wrap { 
+    margin-top: 0.3rem; 
+}
+
+.strength-label { 
+    display: flex; 
+    justify-content: space-between; 
+    font-size: 0.5rem; 
+    color: #6b7a8f; 
+    margin-bottom: 3px; 
+    text-transform: uppercase; 
+    letter-spacing: 0.3px; 
+}
+
+.strength-bar { 
+    height: 4px; 
+    border-radius: 4px; 
+    background: #e8ecf1; 
+    overflow: hidden; 
+}
+
+.strength-fill { 
+    height: 100%; 
+    border-radius: 4px; 
+    transition: width 0.8s ease; 
+}
+
+.strength-fill.s-high { 
+    background: linear-gradient(90deg, #4ade80, #16a34a); 
+}
+
+.strength-fill.s-mid { 
+    background: linear-gradient(90deg, #fbbf24, #d97706); 
+}
+
+.strength-fill.s-low { 
+    background: linear-gradient(90deg, #f87171, #dc2626); 
+}
+
+.summary-table { 
+    width: 100%; 
+    border-collapse: collapse; 
+    font-size: 0.7rem; 
+    background: white; 
+    border-radius: 14px; 
+    overflow: hidden; 
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04); 
+}
+
+.summary-table th { 
+    background: #f8fafc; 
+    color: #4a5a6f; 
+    font-weight: 600; 
+    padding: 10px 12px; 
+    text-align: left; 
+    border-bottom: 2px solid #e8ecf1; 
+    font-size: 0.6rem; 
+    text-transform: uppercase; 
+    letter-spacing: 0.5px; 
+}
+
+.summary-table td { 
+    padding: 8px 12px; 
+    border-bottom: 1px solid #f1f5f9; 
+    color: #0f172a; 
+    vertical-align: middle; 
+}
+
+.summary-table tr:hover td { 
+    background: #f8fafc; 
+}
+
+.summary-table tr:last-child td { 
+    border-bottom: none; 
+}
+
+.td-sig { 
+    display: inline-block; 
+    padding: 2px 10px; 
+    border-radius: 6px; 
+    font-size: 0.6rem; 
+    font-weight: 700; 
+}
 
 /* ── Mobile (up to 767px) ── */
 @media (max-width: 767px) {
-    .card-grid { grid-template-columns: 1fr; gap: 0.5rem; }
-    .stock-card { padding: 0.7rem; border-radius: 12px; }
-    .stock-name { font-size: 0.8rem; }
-    .ltp-price { font-size: 0.8rem; }
-    .ltp-change { font-size: 0.6rem; padding: 2px 6px; }
-    .tf-badge { font-size: 0.55rem; padding: 3px 2px; }
-    .tf-label { font-size: 0.45rem; }
-    .metric-chip .m-val { font-size: 0.65rem; }
-    .metric-chip .m-label { font-size: 0.4rem; }
-    .summary-table { font-size: 0.6rem; display: block; overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; }
-    .summary-table th, .summary-table td { padding: 5px 8px; }
-    .summary-table th { font-size: 0.55rem; }
-    .td-sig { font-size: 0.55rem; padding: 2px 6px; }
+    .card-grid { 
+        grid-template-columns: 1fr; 
+        gap: 0.5rem; 
+        padding: 4px 2px 40px 2px;
+    }
+    .stock-card { 
+        padding: 0.7rem; 
+        border-radius: 12px; 
+    }
+    .stock-name { 
+        font-size: 0.8rem; 
+    }
+    .ltp-price { 
+        font-size: 0.8rem; 
+    }
+    .ltp-change { 
+        font-size: 0.6rem; 
+        padding: 2px 6px; 
+    }
+    .tf-badge { 
+        font-size: 0.55rem; 
+        padding: 3px 2px; 
+    }
+    .tf-label { 
+        font-size: 0.45rem; 
+    }
+    .metric-chip .m-val { 
+        font-size: 0.65rem; 
+    }
+    .metric-chip .m-label { 
+        font-size: 0.4rem; 
+    }
+    .summary-table { 
+        font-size: 0.6rem; 
+        display: block; 
+        overflow-x: auto; 
+        white-space: nowrap; 
+        -webkit-overflow-scrolling: touch; 
+    }
+    .summary-table th, 
+    .summary-table td { 
+        padding: 5px 8px; 
+    }
+    .summary-table th { 
+        font-size: 0.55rem; 
+    }
+    .td-sig { 
+        font-size: 0.55rem; 
+        padding: 2px 6px; 
+    }
 }
 
 /* ── Very Small Mobile (up to 400px) ── */
 @media (max-width: 400px) {
-    .stock-card { padding: 0.6rem; border-radius: 10px; }
-    .stock-name { font-size: 0.7rem; }
-    .ltp-price { font-size: 0.7rem; }
-    .tf-badge { font-size: 0.5rem; padding: 2px 1px; }
-    .summary-table { font-size: 0.5rem; }
-    .summary-table th, .summary-table td { padding: 4px 5px; }
+    .stock-card { 
+        padding: 0.6rem; 
+        border-radius: 10px; 
+    }
+    .stock-name { 
+        font-size: 0.7rem; 
+    }
+    .ltp-price { 
+        font-size: 0.7rem; 
+    }
+    .tf-badge { 
+        font-size: 0.5rem; 
+        padding: 2px 1px; 
+    }
+    .summary-table { 
+        font-size: 0.5rem; 
+    }
+    .summary-table th, 
+    .summary-table td { 
+        padding: 4px 5px; 
+    }
 }
 
 /* ── Tablet (768px - 1024px) ── */
 @media (min-width: 768px) and (max-width: 1024px) {
-    .card-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.6rem; }
-    .stock-card { padding: 0.8rem; }
+    .card-grid { 
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); 
+        gap: 0.6rem; 
+    }
+    .stock-card { 
+        padding: 0.8rem; 
+    }
 }
 
 /* ── Desktop (1025px+) ── */
 @media (min-width: 1025px) {
-    .card-grid { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 0.8rem; }
-    .stock-card { padding: 1rem 1.2rem; }
+    .card-grid { 
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); 
+        gap: 0.8rem; 
+        padding: 4px 2px 20px 2px;
+    }
+    .stock-card { 
+        padding: 1rem 1.2rem; 
+    }
+}
+
+/* Fix for scrolling container */
+.iframe-container {
+    overflow-y: auto !important;
+    height: auto !important;
+    max-height: none !important;
+}
+
+.scroll-container {
+    overflow-y: auto !important;
+    height: 100% !important;
+    padding-bottom: 20px !important;
 }
 </style>
 """
@@ -1622,28 +1846,28 @@ if top_10_names and len(top_10_names) > 0:
     tab1, tab2 = st.tabs(["🃏 Signal Cards", "📋 Summary Table"])
 
     with tab1:
-        cards_html = '<div class="card-grid">'
+        cards_html = f'{COMPONENT_CSS}<div class="scroll-container"><div class="card-grid">'
         for idx, stock in enumerate(top_10_names, 1):
             r1h = all_res.get((stock, "1h"))
             r4h = all_res.get((stock, "4h"))
             r1d = all_res.get((stock, "1d"))
             cards_html += stock_card_html(stock, r1h, r4h, r1d, idx)
-        cards_html += '</div>'
+        cards_html += '</div></div>'
         
-        # Dynamic height based on number of stocks
-        n_rows = max(1, -(-len(top_10_names) // 2))  # 2 columns on mobile, 3 on desktop
-        if len(top_10_names) <= 5:
-            card_height = n_rows * 220 + 40
-        else:
-            card_height = n_rows * 210 + 40
-            
-        components.html(COMPONENT_CSS + cards_html, height=card_height, scrolling=False)
+        # Use a much larger height with scrolling enabled
+        components.html(
+            cards_html, 
+            height=800,  # Increased height
+            scrolling=True  # Enable scrolling
+        )
 
     with tab2:
-        tbl_html = summary_table_html(top_10_names, all_res)
-        # Dynamic table height
-        table_height = len(top_10_names) * 38 + 70
-        components.html(COMPONENT_CSS + tbl_html, height=table_height, scrolling=False)
+        tbl_html = f'{COMPONENT_CSS}<div class="scroll-container">{summary_table_html(top_10_names, all_res)}</div>'
+        components.html(
+            tbl_html, 
+            height=600,  # Increased height
+            scrolling=True  # Enable scrolling
+        )
 else:
     st.error("❌ No data available. Please try again later.")
     st.info("💡 Tips:\n- Check internet connection\n- Yahoo Finance might be temporarily unavailable\n- Try refreshing after 1-2 minutes")
