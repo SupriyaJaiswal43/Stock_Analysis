@@ -8,6 +8,8 @@ NSE Stock Analyzer - Premium Design
 • Top 10 from NIFTY 50 stocks
 • Premium UI Design
 • Created by Supriya Jaiswal
+• NEW: EMA 50 & 200 crossover with 2-minute timeframe
+• NEW: Daily first-time high detection
 """
 
 import streamlit as st
@@ -27,6 +29,10 @@ BUY_RSI, BUY_STOCH = 40, 20
 SELL_RSI, SELL_STOCH = 70, 80
 RSI_PERIOD = 14
 STOCH_K, STOCH_D = 14, 3
+
+# New EMA parameters
+EMA_FAST = 50
+EMA_SLOW = 200
 
 # ── NIFTY 50 STOCKS ────────────────────────────────────────────────
 NIFTY_50 = {
@@ -297,6 +303,20 @@ st.markdown("""
     box-shadow: 0 2px 8px rgba(109, 40, 217, 0.15);
 }
 
+.rule-ema {
+    background: linear-gradient(135deg, #fefce8, #fef9c3);
+    color: #854d0e;
+    border: 1px solid #fde047;
+    box-shadow: 0 2px 8px rgba(217, 119, 6, 0.15);
+}
+
+.rule-high {
+    background: linear-gradient(135deg, #fce7f3, #fbcfe8);
+    color: #9d174d;
+    border: 1px solid #f9a8d4;
+    box-shadow: 0 2px 8px rgba(157, 23, 77, 0.15);
+}
+
 /* ── Refresh Button ── */
 .refresh-wrapper {
     display: flex;
@@ -346,6 +366,8 @@ st.markdown("""
 .stat-hold .stat-value { color: #d97706; }
 .stat-rsi .stat-value { color: #2563eb; }
 .stat-total .stat-value { color: #7c3aed; }
+.stat-ema .stat-value { color: #eab308; }
+.stat-high .stat-value { color: #ec4899; }
 
 /* ── Tabs ── */
 .stTabs [data-baseweb="tab-list"] {
@@ -428,6 +450,14 @@ st.markdown("""
 
 .stock-card.hold-border::before {
     background: linear-gradient(90deg, #fbbf24, #d97706);
+}
+
+.stock-card.ema-buy-border::before {
+    background: linear-gradient(90deg, #fde047, #eab308);
+}
+
+.stock-card.high-breakout-border::before {
+    background: linear-gradient(90deg, #f9a8d4, #ec4899);
 }
 
 /* Card Header */
@@ -542,6 +572,18 @@ st.markdown("""
     border: 1px solid #e2e8f0;
 }
 
+.tf-badge.sig-ema-buy {
+    background: #fefce8;
+    color: #854d0e;
+    border: 1px solid #fde047;
+}
+
+.tf-badge.sig-high-breakout {
+    background: #fce7f3;
+    color: #9d174d;
+    border: 1px solid #f9a8d4;
+}
+
 /* Metrics */
 .metrics-row {
     display: flex;
@@ -572,6 +614,16 @@ st.markdown("""
     font-size: 0.7rem;
     font-weight: 600;
     color: #0f172a;
+}
+
+.metric-chip .ema-50 {
+    color: #eab308;
+}
+.metric-chip .ema-200 {
+    color: #22c55e;
+}
+.metric-chip .high-tag {
+    color: #ec4899;
 }
 
 /* Strength */
@@ -1133,7 +1185,79 @@ def fetch_live_data(ticker, interval):
     except Exception as e:
         return None, False
 
-def analyse_stock(name, ticker, interval):
+def get_2min_data(ticker):
+    """Fetch 2-minute data for EMA analysis"""
+    try:
+        # Get 5 days of 2-min data to ensure enough data points
+        df = yf.download(ticker, period="5d", interval="2m", 
+                         progress=False, auto_adjust=True, timeout=15)
+        
+        if df is not None and len(df) > 50:
+            if isinstance(df.columns, pd.MultiIndex):
+                df.columns = df.columns.get_level_values(0)
+            
+            # Remove duplicate indices
+            df = df[~df.index.duplicated(keep="last")].sort_index()
+            
+            # Calculate EMAs
+            df['EMA_50'] = df['Close'].ewm(span=EMA_FAST, adjust=False).mean()
+            df['EMA_200'] = df['Close'].ewm(span=EMA_SLOW, adjust=False).mean()
+            
+            # Calculate daily high and check for first-time high
+            df['Date'] = df.index.date
+            df['Daily_High'] = df.groupby('Date')['High'].transform('max')
+            
+            # Detect first-time high of the day
+            df['Is_First_High'] = False
+            for date in df['Date'].unique():
+                day_data = df[df['Date'] == date]
+                if len(day_data) > 0:
+                    # Find first occurrence of daily high
+                    max_high = day_data['High'].max()
+                    first_high_idx = day_data[day_data['High'] == max_high].index[0]
+                    df.loc[first_high_idx, 'Is_First_High'] = True
+            
+            # Check current conditions
+            if len(df) > 0:
+                latest = df.iloc[-1]
+                current_price = latest['Close']
+                ema_50 = latest['EMA_50'] if not pd.isna(latest['EMA_50']) else None
+                ema_200 = latest['EMA_200'] if not pd.isna(latest['EMA_200']) else None
+                
+                # Condition 1: Price > EMA 50
+                condition1 = current_price > ema_50 if ema_50 is not None else False
+                
+                # Condition 2: Price > EMA 200 and crossing above
+                condition2 = False
+                if ema_200 is not None and len(df) > 1:
+                    prev = df.iloc[-2]
+                    prev_ema_200 = prev['EMA_200'] if not pd.isna(prev['EMA_200']) else None
+                    if prev_ema_200 is not None:
+                        # Check if current price crossed above EMA 200
+                        condition2 = (current_price > ema_200 and prev['Close'] <= prev_ema_200)
+                
+                # Check if it's first high of the day (only show when first time)
+                is_first_high = latest['Is_First_High']
+                
+                return {
+                    'Current_Price': current_price,
+                    'EMA_50': ema_50,
+                    'EMA_200': ema_200,
+                    'Condition1': condition1,  # Price > EMA 50
+                    'Condition2': condition2,  # Crossed above EMA 200
+                    'Is_First_High': is_first_high,
+                    'Daily_High': latest['Daily_High'] if 'Daily_High' in latest else None,
+                    'DataPoints': len(df),
+                    'Timestamp': df.index[-1]
+                }
+        
+        return None
+    except Exception as e:
+        return None
+
+def analyse_stock_with_ema(name, ticker, interval):
+    """Analyse stock with additional EMA and 2-minute data"""
+    # Get main timeframe data
     df, ok = fetch_live_data(ticker, interval)
     if not ok or df is None or len(df) < RSI_PERIOD + 5:
         return None
@@ -1159,6 +1283,35 @@ def analyse_stock(name, ticker, interval):
     sig  = get_signal(rsi, sk)
     str_ = signal_strength(rsi, sk, mh, float(lat["Volume"]) if pd.notna(lat["Volume"]) else 0, va)
 
+    # Get 2-minute data for EMA and high analysis
+    ema_data = get_2min_data(ticker)
+    
+    ema_signal = "WAIT"
+    high_signal = "WAIT"
+    ema_text = ""
+    high_text = ""
+    ema_condition = False
+    high_condition = False
+    
+    if ema_data:
+        # Check EMA conditions
+        if ema_data['Condition1'] and ema_data['Condition2']:
+            ema_signal = "EMA-BUY"
+            ema_text = "✓ Price > EMA50 & Crossed EMA200"
+            ema_condition = True
+        elif ema_data['Condition1']:
+            ema_signal = "EMA-ONLY"
+            ema_text = "✓ Price > EMA50"
+        elif ema_data['Condition2']:
+            ema_signal = "EMA-CROSS"
+            ema_text = "✓ Crossed EMA200"
+        
+        # Check first-time high condition
+        if ema_data['Is_First_High']:
+            high_signal = "HIGH-BREAKOUT"
+            high_text = f"🔥 First High @ ₹{ema_data['Daily_High']:.2f}"
+            high_condition = True
+
     return {
         "Stock": name, "Ticker": ticker, "Timeframe": interval,
         "LTP": ltp, "Change": chg,
@@ -1168,12 +1321,24 @@ def analyse_stock(name, ticker, interval):
         "Support": round(float(lat["SUPP"]), 2) if pd.notna(lat["SUPP"]) else None,
         "Resistance": round(float(lat["RES"]), 2) if pd.notna(lat["RES"]) else None,
         "As_of": ha.index[-1].strftime("%d-%b %H:%M"),
-        "DataPoints": len(ha)
+        "DataPoints": len(ha),
+        # EMA data
+        "EMA_Signal": ema_signal,
+        "EMA_Text": ema_text,
+        "EMA_50_Value": round(ema_data['EMA_50'], 2) if ema_data and ema_data['EMA_50'] else None,
+        "EMA_200_Value": round(ema_data['EMA_200'], 2) if ema_data and ema_data['EMA_200'] else None,
+        "EMA_Condition": ema_condition,
+        # High data
+        "High_Signal": high_signal,
+        "High_Text": high_text,
+        "High_Condition": high_condition,
+        "Daily_High": round(ema_data['Daily_High'], 2) if ema_data and ema_data['Daily_High'] else None,
     }
 
 @st.cache_data(ttl=300)
 def get_all_data():
     results_by_tf = {}
+    ema_results = {}
     
     progress_text = st.empty()
     progress_bar = st.progress(0)
@@ -1181,6 +1346,18 @@ def get_all_data():
     total = len(NIFTY_50) * len(TIMEFRAMES)
     current = 0
     
+    # First, get 2-minute EMA data for all stocks
+    ema_progress = st.empty()
+    ema_progress.text("📊 Analyzing 2-minute EMA data...")
+    
+    for name, ticker in NIFTY_50.items():
+        ema_data = get_2min_data(ticker)
+        if ema_data:
+            ema_results[name] = ema_data
+    
+    ema_progress.text("✅ EMA analysis complete!")
+    
+    # Then get timeframe data
     for tf in TIMEFRAMES:
         tf_res = []
         for name, ticker in NIFTY_50.items():
@@ -1189,8 +1366,16 @@ def get_all_data():
             progress_bar.progress(current / total)
             
             try:
-                r = analyse_stock(name, ticker, tf)
+                r = analyse_stock_with_ema(name, ticker, tf)
                 if r: 
+                    # Add EMA data from pre-computed results
+                    if name in ema_results:
+                        ema = ema_results[name]
+                        r["EMA_50_Value"] = round(ema['EMA_50'], 2) if ema['EMA_50'] else None
+                        r["EMA_200_Value"] = round(ema['EMA_200'], 2) if ema['EMA_200'] else None
+                        r["EMA_Condition"] = ema['Condition1'] and ema['Condition2']
+                        r["High_Condition"] = ema['Is_First_High']
+                        r["Daily_High"] = round(ema['Daily_High'], 2) if ema['Daily_High'] else None
                     tf_res.append(r)
                 time.sleep(0.1)
             except Exception as e:
@@ -1200,18 +1385,33 @@ def get_all_data():
     progress_text.text("✅ Analysis complete!")
     progress_bar.empty()
     
-    # Top 10 based on 1H Change
+    # Top 10 based on 1H Change and EMA/High conditions
     top_10 = list(NIFTY_50.keys())[:10]
     if results_by_tf.get("1h"):
         valid = [r for r in results_by_tf["1h"] if r is not None]
         if valid:
-            top_10 = [r["Stock"] for r in sorted(valid, key=lambda x: x["Change"], reverse=True)[:10]]
+            # Prioritize stocks with EMA and High conditions
+            scored = []
+            for r in valid:
+                score = r["Change"]  # Base score from change
+                if r.get("EMA_Condition", False):
+                    score += 5  # Bonus for EMA condition
+                if r.get("High_Condition", False):
+                    score += 10  # Bonus for first-time high
+                scored.append((r, score))
+            scored.sort(key=lambda x: x[1], reverse=True)
+            top_10 = [r[0]["Stock"] for r in scored[:10]]
     
     return results_by_tf, top_10
 
 # ── HTML BUILDERS ──────────────────────────────────────────────────
-SIG_CLASS = {"BUY": "sig-buy", "SELL": "sig-sell", "HOLD": "sig-hold", "WAIT": "sig-wait"}
-SIG_ICON = {"BUY": "▲ BUY", "SELL": "▼ SELL", "HOLD": "● HOLD", "WAIT": "… WAIT"}
+SIG_CLASS = {"BUY": "sig-buy", "SELL": "sig-sell", "HOLD": "sig-hold", 
+             "WAIT": "sig-wait", "EMA-BUY": "sig-ema-buy", 
+             "EMA-ONLY": "sig-ema-buy", "EMA-CROSS": "sig-ema-buy",
+             "HIGH-BREAKOUT": "sig-high-breakout"}
+SIG_ICON = {"BUY": "▲ BUY", "SELL": "▼ SELL", "HOLD": "● HOLD", "WAIT": "… WAIT",
+            "EMA-BUY": "📈 EMA BUY", "EMA-ONLY": "📊 EMA 50+", "EMA-CROSS": "🔄 EMA CROSS",
+            "HIGH-BREAKOUT": "🚀 HIGH BREAKOUT"}
 
 def strength_bar_html(val):
     cls = "s-high" if val >= 65 else ("s-mid" if val >= 35 else "s-low")
@@ -1221,25 +1421,40 @@ def strength_bar_html(val):
         <div class="strength-bar"><div class="strength-fill {cls}" style="width:{val}%"></div></div>
     </div>"""
 
-def stock_card_html(name, r1h, r4h, r1d, rank):
+def stock_card_html(name, r1h, r4h, r1d, rank, ema_data=None):
     if r1h:
         ltp = r1h["LTP"]
         chg = r1h["Change"]
         rsi_1h = r1h["RSI"]
         sk_1h = r1h["SK"]
         sig_1h = r1h["Signal"]
+        ema_condition = r1h.get("EMA_Condition", False)
+        high_condition = r1h.get("High_Condition", False)
+        ema_50 = r1h.get("EMA_50_Value")
+        ema_200 = r1h.get("EMA_200_Value")
+        daily_high = r1h.get("Daily_High")
     elif r1d:
         ltp = r1d["LTP"]
         chg = r1d["Change"]
         rsi_1h = "–"
         sk_1h = "–"
         sig_1h = "WAIT"
+        ema_condition = False
+        high_condition = False
+        ema_50 = None
+        ema_200 = None
+        daily_high = None
     else:
         ltp = 0
         chg = 0
         rsi_1h = "–"
         sk_1h = "–"
         sig_1h = "WAIT"
+        ema_condition = False
+        high_condition = False
+        ema_50 = None
+        ema_200 = None
+        daily_high = None
     
     # Get 4h data with fallback
     if r4h:
@@ -1270,18 +1485,28 @@ def stock_card_html(name, r1h, r4h, r1d, rank):
     
     avg_str = int(np.mean(strengths)) if strengths else 0
     
-    # Border class based on primary signal
-    border_cls = "buy-border" if sig_1h == "BUY" else ("sell-border" if sig_1h == "SELL" else "hold-border" if sig_1h == "HOLD" else "")
+    # Border class based on conditions
+    border_cls = ""
+    if high_condition:
+        border_cls = "high-breakout-border"
+    elif ema_condition:
+        border_cls = "ema-buy-border"
+    elif sig_1h == "BUY":
+        border_cls = "buy-border"
+    elif sig_1h == "SELL":
+        border_cls = "sell-border"
+    elif sig_1h == "HOLD":
+        border_cls = "hold-border"
     
     chg_cls = "pos" if chg >= 0 else "neg"
     chg_sym = "▲" if chg >= 0 else "▼"
     
     medal = "🥇" if rank == 1 else "🥈" if rank == 2 else "🥉" if rank == 3 else f"#{rank}"
 
-    def tf_badge(sig, label):
+    def tf_badge(sig, label, extra_cls=""):
         sc = SIG_CLASS.get(sig, "sig-wait")
         ic = SIG_ICON.get(sig, "WAIT")
-        return f'<div class="tf-badge {sc}"><span class="tf-label">{label}</span>{ic}</div>'
+        return f'<div class="tf-badge {sc} {extra_cls}"><span class="tf-label">{label}</span>{ic}</div>'
 
     sig_row = f"""
     <div class="sig-row">
@@ -1289,6 +1514,24 @@ def stock_card_html(name, r1h, r4h, r1d, rank):
         {tf_badge(sig_4h, "4H")}
         {tf_badge(sig_1d, "1D")}
     </div>"""
+
+    # EMA and High indicators
+    ema_high_row = ""
+    if ema_50 is not None or ema_200 is not None or daily_high is not None:
+        ema_high_row = '<div class="metrics-row">'
+        if ema_50 is not None:
+            ema_high_row += f'<div class="metric-chip"><span class="m-label">EMA 50</span><span class="m-val ema-50">₹{ema_50:.2f}</span></div>'
+        if ema_200 is not None:
+            ema_high_row += f'<div class="metric-chip"><span class="m-label">EMA 200</span><span class="m-val ema-200">₹{ema_200:.2f}</span></div>'
+        if daily_high is not None:
+            ema_high_row += f'<div class="metric-chip"><span class="m-label">📊 High</span><span class="m-val high-tag">₹{daily_high:.2f}</span></div>'
+        ema_high_row += '</div>'
+        
+        # Add EMA and High status badges
+        if ema_condition:
+            ema_high_row += f'<div class="sig-row"><div class="tf-badge sig-ema-buy" style="flex:1;"><span class="tf-label">📈</span>✓ EMA Crossover</div></div>'
+        if high_condition:
+            ema_high_row += f'<div class="sig-row"><div class="tf-badge sig-high-breakout" style="flex:1;"><span class="tf-label">🚀</span>🔥 FIRST HIGH TODAY!</div></div>'
 
     def metric_chip(label, val):
         return f'<div class="metric-chip"><span class="m-label">{label}</span><span class="m-val">{val}</span></div>'
@@ -1307,6 +1550,8 @@ def stock_card_html(name, r1h, r4h, r1d, rank):
             <div class="stock-name-wrap">
                 <span class="stock-rank">{medal}</span>
                 <span class="stock-name">{name}</span>
+                {f'<span style="font-size:0.6rem;background:#fce7f3;color:#9d174d;padding:2px 6px;border-radius:4px;font-weight:700;">🔥 HIGH</span>' if high_condition else ''}
+                {f'<span style="font-size:0.6rem;background:#fefce8;color:#854d0e;padding:2px 6px;border-radius:4px;font-weight:700;">📈 EMA</span>' if ema_condition else ''}
             </div>
             <div class="ltp-block">
                 <div class="ltp-price">₹{ltp:,.2f}</div>
@@ -1314,6 +1559,7 @@ def stock_card_html(name, r1h, r4h, r1d, rank):
             </div>
         </div>
         {sig_row}
+        {ema_high_row}
         {metrics}
         {strength_bar_html(avg_str)}
     </div>"""
@@ -1329,10 +1575,14 @@ def summary_table_html(top_10, all_res):
             ltp = r1h["LTP"]
             chg = r1h["Change"]
             as_of = r1h["As_of"]
+            ema_condition = r1h.get("EMA_Condition", False)
+            high_condition = r1h.get("High_Condition", False)
         else:
             ltp = "–"
             chg = 0
             as_of = "–"
+            ema_condition = False
+            high_condition = False
             
         chg_cls = "pos" if chg >= 0 else "neg"
         medal = "🥇" if rank == 1 else "🥈" if rank == 2 else "🥉" if rank == 3 else f"{rank}"
@@ -1341,9 +1591,16 @@ def summary_table_html(top_10, all_res):
             sc = SIG_CLASS.get(sig, "sig-wait")
             return f'<span class="td-sig {sc}">{SIG_ICON.get(sig, "WAIT")}</span>'
 
+        # Add EMA and High indicators in table
+        extra_indicators = ""
+        if high_condition:
+            extra_indicators = '🔥'
+        elif ema_condition:
+            extra_indicators = '📈'
+
         rows += f"""<tr>
             <td style="color:#6b7a8f;font-size:0.65rem;font-weight:700;">{medal}</td>
-            <td><strong style="color:#0f172a;font-size:0.75rem;">{stock}</strong></td>
+            <td><strong style="color:#0f172a;font-size:0.75rem;">{stock} {extra_indicators}</strong></td>
             <td style="font-weight:600;font-size:0.75rem;">₹{ltp:,.0f}</td>
             <td class="{chg_cls}" style="font-weight:600;font-size:0.7rem;">{"▲" if chg>=0 else "▼"} {abs(chg):.1f}%</td>
             <td>{td_sig(r1h["Signal"] if r1h else "WAIT")}</td>
@@ -1377,6 +1634,8 @@ st.markdown(f"""
                     <span>🕯️ Heikin Ashi</span>
                     <span>•</span>
                     <span>📈 Live Market Data</span>
+                    <span>•</span>
+                    <span>📊 2-Min EMA Analysis</span>
                 </div>
             </div>
         </div>
@@ -1406,6 +1665,8 @@ st.markdown(f"""
     <span class="rule-pill rule-buy">🟢 BUY: RSI &gt; {BUY_RSI} &amp; Stoch &gt; {BUY_STOCH}</span>
     <span class="rule-pill rule-sell">🔴 SELL: RSI &lt; {SELL_RSI} &amp; Stoch &lt; {SELL_STOCH}</span>
     <span class="rule-pill rule-hold">🟡 HOLD: No clear signal</span>
+    <span class="rule-pill rule-ema">📈 EMA: Price &gt; EMA50 &amp; Crosses EMA200</span>
+    <span class="rule-pill rule-high">🚀 HIGH: First Time High Today</span>
     <span class="rule-pill rule-ha">🕯️ Heikin Ashi</span>
     <span class="rule-pill rule-stats">📊 Signal Strength: 0-100%</span>
 </div>
@@ -1433,6 +1694,8 @@ if top_10_names and len(top_10_names) > 0:
     buy_count = 0
     sell_count = 0
     hold_count = 0
+    ema_count = 0
+    high_count = 0
     rsi_values = []
     
     for stock in top_10_names:
@@ -1445,6 +1708,11 @@ if top_10_names and len(top_10_names) > 0:
             else:
                 hold_count += 1
             rsi_values.append(r["RSI"])
+            
+            if r.get("EMA_Condition", False):
+                ema_count += 1
+            if r.get("High_Condition", False):
+                high_count += 1
     
     avg_rsi = round(sum(rsi_values) / len(rsi_values), 1) if rsi_values else 0
     
@@ -1461,6 +1729,14 @@ if top_10_names and len(top_10_names) > 0:
         <div class="stat-card stat-hold">
             <span class="stat-value">🟡 {hold_count}</span>
             <span class="stat-label">HOLD Signals</span>
+        </div>
+        <div class="stat-card stat-ema">
+            <span class="stat-value">📈 {ema_count}</span>
+            <span class="stat-label">EMA Breakout</span>
+        </div>
+        <div class="stat-card stat-high">
+            <span class="stat-value">🚀 {high_count}</span>
+            <span class="stat-label">First High</span>
         </div>
         <div class="stat-card stat-rsi">
             <span class="stat-value">{avg_rsi}</span>
@@ -1534,6 +1810,14 @@ body {
 
 .stock-card.hold-border::before {
     background: linear-gradient(90deg, #fbbf24, #d97706);
+}
+
+.stock-card.ema-buy-border::before {
+    background: linear-gradient(90deg, #fde047, #eab308);
+}
+
+.stock-card.high-breakout-border::before {
+    background: linear-gradient(90deg, #f9a8d4, #ec4899);
 }
 
 .card-header {
@@ -1646,6 +1930,18 @@ body {
     border: 1px solid #e2e8f0; 
 }
 
+.tf-badge.sig-ema-buy { 
+    background: #fefce8; 
+    color: #854d0e; 
+    border: 1px solid #fde047; 
+}
+
+.tf-badge.sig-high-breakout { 
+    background: #fce7f3; 
+    color: #9d174d; 
+    border: 1px solid #f9a8d4; 
+}
+
 .metrics-row { 
     display: flex; 
     gap: 0.3rem; 
@@ -1675,6 +1971,16 @@ body {
     font-size: 0.7rem; 
     font-weight: 600; 
     color: #0f172a; 
+}
+
+.metric-chip .ema-50 {
+    color: #eab308;
+}
+.metric-chip .ema-200 {
+    color: #22c55e;
+}
+.metric-chip .high-tag {
+    color: #ec4899;
 }
 
 .strength-wrap { 
@@ -1866,7 +2172,7 @@ body {
 """
 
 if top_10_names and len(top_10_names) > 0:
-    tab1, tab2 = st.tabs(["🃏 Signal Cards", "📋 Summary Table"])
+    tab1, tab2, tab3 = st.tabs(["🃏 Signal Cards", "📋 Summary Table", "📊 EMA & High Analysis"])
 
     with tab1:
         cards_html = f'{COMPONENT_CSS}<div class="card-grid">'
@@ -1890,6 +2196,62 @@ if top_10_names and len(top_10_names) > 0:
             height=600,
             scrolling=True
         )
+
+    with tab3:
+        # Create a detailed table showing EMA and High conditions
+        st.markdown("### 📊 EMA & First High Analysis (2-Minute Timeframe)")
+        
+        ema_high_data = []
+        for stock in top_10_names:
+            r = all_res.get((stock, "1h"))
+            if r:
+                ema_high_data.append({
+                    "Stock": stock,
+                    "EMA 50": r.get("EMA_50_Value", "N/A"),
+                    "EMA 200": r.get("EMA_200_Value", "N/A"),
+                    "Price > EMA 50": "✓" if r.get("EMA_Condition", False) and r.get("EMA_50_Value") and r.get("LTP") > r.get("EMA_50_Value") else "✗",
+                    "Crossed EMA 200": "✓" if r.get("EMA_Condition", False) else "✗",
+                    "Daily High": r.get("Daily_High", "N/A"),
+                    "First High Today": "🔥" if r.get("High_Condition", False) else "✗",
+                    "Condition Met": "✅" if (r.get("EMA_Condition", False) or r.get("High_Condition", False)) else "❌"
+                })
+        
+        if ema_high_data:
+            df_ema_high = pd.DataFrame(ema_high_data)
+            st.dataframe(
+                df_ema_high,
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "Stock": st.column_config.TextColumn("Stock", width="small"),
+                    "EMA 50": st.column_config.NumberColumn("EMA 50", format="₹%.2f", width="small"),
+                    "EMA 200": st.column_config.NumberColumn("EMA 200", format="₹%.2f", width="small"),
+                    "Price > EMA 50": st.column_config.TextColumn("Price > EMA 50", width="small"),
+                    "Crossed EMA 200": st.column_config.TextColumn("Crossed EMA 200", width="small"),
+                    "Daily High": st.column_config.NumberColumn("Daily High", format="₹%.2f", width="small"),
+                    "First High Today": st.column_config.TextColumn("First High Today", width="small"),
+                    "Condition Met": st.column_config.TextColumn("Condition Met", width="small")
+                }
+            )
+            
+            # Summary of conditions
+            total_ema = sum(1 for d in ema_high_data if "✓" in d["Price > EMA 50"])
+            total_high = sum(1 for d in ema_high_data if d["First High Today"] == "🔥")
+            total_conditions = sum(1 for d in ema_high_data if d["Condition Met"] == "✅")
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("📈 EMA Breakout", total_ema, f"out of {len(ema_high_data)}")
+            with col2:
+                st.metric("🚀 First High Today", total_high, f"out of {len(ema_high_data)}")
+            with col3:
+                st.metric("✅ Total Conditions Met", total_conditions, f"out of {len(ema_high_data)}")
+            
+            st.info("📌 **How to read:**\n"
+                   "- **Price > EMA 50**: Current price is above 50-period Exponential Moving Average\n"
+                   "- **Crossed EMA 200**: Price has crossed above the 200-period EMA\n"
+                   "- **First High Today**: Stock is trading at its highest point of the day (first time)\n"
+                   "- **Condition Met**: Either EMA condition is met OR stock is at first high")
 else:
     st.error("❌ No data available. Please try again later.")
     st.info("💡 Tips:\n- Check internet connection\n- Yahoo Finance might be temporarily unavailable\n- Try refreshing after 1-2 minutes")
@@ -1905,6 +2267,8 @@ st.markdown("""
         ⚠️ Educational purposes only. Not financial advice.
         <span class="divider">|</span>
         📊 NIFTY 50 stocks tracked
+        <span class="divider">|</span>
+        📈 2-Min EMA & First High Analysis
     </span>
 </div>
 """, unsafe_allow_html=True)
